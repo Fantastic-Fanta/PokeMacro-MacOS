@@ -10,8 +10,6 @@ remove_chronos_event_phrase = lambda text: re.sub(
 
 def trim_text_from_username_to_attempts(text: str, username: str) -> str:
     text_lower, username_lower = text.lower(), username.lower()
-    if username_lower not in text_lower:
-        return text
     username_index = text_lower.find(username_lower)
     if username_index == -1:
         return text

@@ -186,12 +186,6 @@ class DiscordBot:
             print(f"[Discord Bot] Error waiting for confirmation: {e}")
             return ConfirmationResult.TIMEOUT
 
-    async def send_simple_message(self, content: str) -> None:
-        if not self.log_channel:
-            print("[Discord Bot] Log channel not available, cannot send message")
-            return
-        await self.log_channel.send(content)
-
     async def send_log_embed(self, description: str, color: Optional[discord.Color] = None) -> None:
         if not self.log_channel:
             print("[Discord Bot] Log channel not available, cannot send log embed")
@@ -242,19 +236,6 @@ class DiscordBot:
         except Exception as e:
             print(f"[Discord Bot] Error in sync confirmation: {e}")
             return ConfirmationResult.TIMEOUT
-
-    def send_simple_message_sync(self, content: str) -> None:
-        if not self._loop or not self._loop.is_running():
-            print("[Discord Bot] Bot not running, cannot send message")
-            return
-        future = asyncio.run_coroutine_threadsafe(
-            self.send_simple_message(content),
-            self._loop,
-        )
-        try:
-            future.result(timeout=5)
-        except Exception as e:
-            print(f"[Discord Bot] Error in sync simple message: {e}")
 
     def send_log_embed_sync(
         self,

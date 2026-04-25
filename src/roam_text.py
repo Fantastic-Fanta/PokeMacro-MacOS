@@ -20,10 +20,7 @@ def capture_sprite_region_to_file(left: int, top: int, width: int, height: int, 
 
 def is_text_in_wishlist(text: str, wishlist_items: list) -> bool:
     text_lower = text.lower()
-    for item in wishlist_items:
-        if item.lower() in text_lower:
-            return True
-    return False
+    return any(item.lower() in text_lower for item in wishlist_items)
 
 
 def find_closest_roaming(roaming_name: str, roaming_list: list) -> str:

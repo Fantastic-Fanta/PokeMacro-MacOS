@@ -95,15 +95,8 @@ IS_GOOD = _config.get("IsGood", False)
 MODE = str(_config.get("Mode", "Default")).strip().lower()
 
 
-def _normalize_hunting_mode(raw: str) -> str:
-    s = (raw or "egg").strip().lower()
-    if s in ("roam", "roaming", "roamhunter"):
-        return "roam"
-    return "egg"
-
-
-# egg = egg rolling; roam = RoamHunter. Default egg if key missing.
-HUNTING_MODE = _normalize_hunting_mode(str(_config.get("HuntingMode", "egg")))
+_raw_mode = str(_config.get("HuntingMode", "egg")).strip().lower()
+HUNTING_MODE = "roam" if _raw_mode in ("roam", "roaming", "roamhunter") else "egg"
 
 
 @dataclass
@@ -129,8 +122,8 @@ class MacroConfig:
     discord_guild_id: int = DISCORD_GUILD_ID
 
     def __post_init__(self) -> None:
-        object.__setattr__(self, "reskins", self.reskins or RESKINS)
-        object.__setattr__(self, "gradients", self.gradients or GRADIENTS)
+        self.reskins = self.reskins or RESKINS
+        self.gradients = self.gradients or GRADIENTS
 
 
 def _to_tuple(value: Any) -> Tuple[int, int]:
@@ -170,9 +163,6 @@ def _load_region_from_yaml() -> RegionConfig:
 def _get_screen_center() -> Tuple[int, int]:
     size = pyautogui.size()
     return (size.width // 2, size.height // 2)
-
-
-_get_chat_window_center = lambda region: (region.x + region.width // 2, region.y + region.height // 2)
 
 
 def _create_default_click_sequence(
@@ -236,8 +226,8 @@ def _create_default_click_sequence(
 DEFAULT_POSITIONS = _load_positions_from_yaml()
 DEFAULT_REGION = _load_region_from_yaml()
 SCREEN_CENTER = _get_screen_center()
-CHAT_WINDOW_CENTER = _get_chat_window_center(DEFAULT_REGION)
-DEFAULT_CLICK_SEQUENCE = _create_default_click_sequence(DEFAULT_POSITIONS, SCREEN_CENTER, CHAT_WINDOW_CENTER)
+_chat_center = (DEFAULT_REGION.x + DEFAULT_REGION.width // 2, DEFAULT_REGION.y + DEFAULT_REGION.height // 2)
+DEFAULT_CLICK_SEQUENCE = _create_default_click_sequence(DEFAULT_POSITIONS, SCREEN_CENTER, _chat_center)
 # Fast: drop first 3 click steps (loading + two top-screen taps before savefile wait)
 _effective_clicks = (
     DEFAULT_CLICK_SEQUENCE[5:] if MODE == "fast" else DEFAULT_CLICK_SEQUENCE

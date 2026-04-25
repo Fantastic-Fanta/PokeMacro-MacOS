@@ -93,9 +93,6 @@ class HunterRunner:
             config_path=str(self._config_path),
         )
 
-    def _end_function(self) -> None:
-        self._running = False
-
     def _is_roblox_focused(self) -> bool:
         result = subprocess.run(
             [
@@ -113,7 +110,7 @@ class HunterRunner:
 
     def _check_autostop(self) -> None:
         if not self._is_roblox_focused():
-            self._end_function()
+            self._running = False
 
     def _hold_key(self, key: str, duration: float) -> bool:
         start_time = time.time()
@@ -159,7 +156,7 @@ class HunterRunner:
             self._send_sprite_to_discord(text, is_special=True)
             self._send_debug_log(encounter_image, text, chat_image, chat_text)
             self._handle_special_roaming()
-            self._end_function()
+            self._running = False
             return
         self._send_sprite_to_discord(text, is_special=False)
         self._send_debug_log(encounter_image, text, chat_image, chat_text)
@@ -183,12 +180,10 @@ class HunterRunner:
         try:
             while self._running:
                 self._check_autostop()
-                if not self._running:
-                    break
-                self._hold_key("a", self._config.key_hold_duration_seconds)
-                if not self._running:
-                    break
-                self._hold_key("d", self._config.key_hold_duration_seconds)
+                if self._running:
+                    self._hold_key("a", self._config.key_hold_duration_seconds)
+                if self._running:
+                    self._hold_key("d", self._config.key_hold_duration_seconds)
         finally:
             try:
                 pyautogui.keyUp("a")

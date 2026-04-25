@@ -7,6 +7,78 @@ import requests
 import urllib3
 
 
+def _do_post(webhook_url: str, *, message: str, username: str, file_path: Optional[str], verify) -> bool:
+    if file_path and Path(file_path).exists():
+        with open(file_path, "rb") as f:
+            response = requests.post(
+                webhook_url,
+                files={"file": (Path(file_path).name, f, "image/png")},
+                data={"content": message, "username": username},
+                timeout=30,
+                verify=verify,
+            )
+    else:
+        response = requests.post(
+            webhook_url,
+            json={"content": message, "username": username},
+            timeout=10,
+            verify=verify,
+        )
+    return response.status_code in (200, 204)
+
+
+def _content_type(path: str) -> str:
+    suffix = (Path(path).suffix or "").lower()
+    if suffix == ".png":
+        return "image/png"
+    if suffix in (".jpg", ".jpeg"):
+        return "image/jpeg"
+    if suffix == ".gif":
+        return "image/gif"
+    if suffix in (".yaml", ".yml"):
+        return "text/yaml"
+    return "application/octet-stream"
+
+
+def _do_post_multifile(webhook_url: str, *, payload: dict, file_paths: List[Tuple[str, str]], verify) -> bool:
+    files_list = []
+    opened = []
+    for i, (filename, file_path) in enumerate(file_paths):
+        if Path(file_path).exists():
+            f = open(file_path, "rb")
+            opened.append(f)
+            files_list.append((f"files[{i}]", (filename, f, _content_type(file_path))))
+    try:
+        if not files_list:
+            response = requests.post(webhook_url, json=payload, timeout=10, verify=verify)
+        else:
+            response = requests.post(
+                webhook_url,
+                files=files_list,
+                data={"payload_json": json.dumps(payload)},
+                timeout=60,
+                verify=verify,
+            )
+        return response.status_code in (200, 204)
+    finally:
+        for f in opened:
+            f.close()
+
+
+def _with_ssl_fallback(fn) -> bool:
+    for verify in (certifi.where(), False):
+        try:
+            return fn(verify)
+        except requests.exceptions.SSLError:
+            if verify is False:
+                return False
+            urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+        except requests.exceptions.RequestException as e:
+            print(f"Failed to send Discord webhook: {e}")
+            return False
+    return False
+
+
 def send_discord_webhook(
     webhook_url: str,
     message: str,
@@ -15,68 +87,10 @@ def send_discord_webhook(
 ) -> bool:
     if not webhook_url or not webhook_url.strip():
         return False
-    verify_options = [certifi.where(), True]
-    for verify_option in verify_options:
-        try:
-            if file_path and Path(file_path).exists():
-                with open(file_path, "rb") as f:
-                    files = {"file": (Path(file_path).name, f, "image/png")}
-                    data = {"content": message, "username": username or "Poopimon Notifier"}
-                    response = requests.post(
-                        webhook_url,
-                        files=files,
-                        data=data,
-                        timeout=30,
-                        verify=verify_option,
-                    )
-            else:
-                response = requests.post(
-                    webhook_url,
-                    json={"content": message, "username": username or "Poopimon Notifier"},
-                    headers={"Content-Type": "application/json"},
-                    timeout=10,
-                    verify=verify_option,
-                )
-            if response.status_code in (200, 204):
-                return True
-            print(f"Discord webhook error: {response.status_code} - {response.text}")
-            return False
-        except requests.exceptions.SSLError as ssl_error:
-            if verify_option == certifi.where():
-                continue
-            print(f"SSL verification failed, attempting without verification: {ssl_error}")
-            try:
-                urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-                if file_path and Path(file_path).exists():
-                    with open(file_path, "rb") as f:
-                        files = {"file": (Path(file_path).name, f, "image/png")}
-                        data = {"content": message, "username": username or "Poopimon Notifier"}
-                        response = requests.post(
-                            webhook_url,
-                            files=files,
-                            data=data,
-                            timeout=30,
-                            verify=False,
-                        )
-                else:
-                    response = requests.post(
-                        webhook_url,
-                        json={"content": message, "username": username or "Poopimon Notifier"},
-                        headers={"Content-Type": "application/json"},
-                        timeout=10,
-                        verify=False,
-                    )
-                if response.status_code in (200, 204):
-                    return True
-                print(f"Discord webhook error: {response.status_code} - {response.text}")
-                return False
-            except requests.exceptions.RequestException as e:
-                print(f"Failed to send Discord webhook: {e}")
-                return False
-        except requests.exceptions.RequestException as e:
-            print(f"Failed to send Discord webhook: {e}")
-            return False
-    return False
+    name = username or "Poopimon Notifier"
+    return _with_ssl_fallback(
+        lambda verify: _do_post(webhook_url, message=message, username=name, file_path=file_path, verify=verify)
+    )
 
 
 def send_discord_webhook_multifile(
@@ -87,95 +101,7 @@ def send_discord_webhook_multifile(
 ) -> bool:
     if not webhook_url or not webhook_url.strip():
         return False
-    name = username or "Poopimon Debuggah"
-    payload = {"content": message, "username": name}
-
-    def _content_type(path: str) -> str:
-        p = Path(path)
-        suffix = (p.suffix or "").lower()
-        if suffix in (".png", ".jpg", ".jpeg", ".gif", ".webp"):
-            return "image/png" if suffix == ".png" else f"image/{suffix[1:]}"
-        if suffix in (".yaml", ".yml"):
-            return "text/yaml"
-        return "application/octet-stream"
-
-    verify_options = [certifi.where(), True]
-    for verify_option in verify_options:
-        try:
-            files_list: list = []
-            opened: list = []
-            for i, (filename, file_path) in enumerate(file_paths):
-                if Path(file_path).exists():
-                    f = open(file_path, "rb")
-                    opened.append(f)
-                    ct = _content_type(file_path)
-                    files_list.append((f"files[{i}]", (filename, f, ct)))
-            if not files_list:
-                response = requests.post(
-                    webhook_url,
-                    json=payload,
-                    headers={"Content-Type": "application/json"},
-                    timeout=10,
-                    verify=verify_option,
-                )
-            else:
-                data = {"payload_json": json.dumps(payload)}
-                try:
-                    response = requests.post(
-                        webhook_url,
-                        files=files_list,
-                        data=data,
-                        timeout=60,
-                        verify=verify_option,
-                    )
-                finally:
-                    for f in opened:
-                        f.close()
-            if response.status_code in (200, 204):
-                return True
-            return False
-        except requests.exceptions.SSLError as ssl_error:
-            if verify_option == certifi.where():
-                continue
-            print(f"SSL verification failed, attempting without verification: {ssl_error}")
-            try:
-                urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-                files_list = []
-                opened = []
-                for i, (filename, file_path) in enumerate(file_paths):
-                    if Path(file_path).exists():
-                        f = open(file_path, "rb")
-                        opened.append(f)
-                        ct = _content_type(file_path)
-                        files_list.append((f"files[{i}]", (filename, f, ct)))
-                if not files_list:
-                    response = requests.post(
-                        webhook_url,
-                        json=payload,
-                        headers={"Content-Type": "application/json"},
-                        timeout=10,
-                        verify=False,
-                    )
-                else:
-                    data = {"payload_json": json.dumps(payload)}
-                    try:
-                        response = requests.post(
-                            webhook_url,
-                            files=files_list,
-                            data=data,
-                            timeout=60,
-                            verify=False,
-                        )
-                    finally:
-                        for f in opened:
-                            f.close()
-                if response is not None and response.status_code in (200, 204):
-                    return True
-                return False
-            except requests.exceptions.RequestException as e:
-                print(f"Failed to send Discord webhook: {e}")
-                return False
-        except requests.exceptions.RequestException as e:
-            print(f"Failed to send Discord webhook: {e}")
-            return False
-    return False
+    payload = {"content": message, "username": username or "Poopimon Debuggah"}
+    return _with_ssl_fallback(
+        lambda verify: _do_post_multifile(webhook_url, payload=payload, file_paths=file_paths, verify=verify)
+    )

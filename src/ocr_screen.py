@@ -77,14 +77,6 @@ def _find_tesseract() -> Optional[str]:
     return None
 
 
-def _set_tesseract_path() -> None:
-    if pytesseract.pytesseract.tesseract_cmd:
-        return
-    found = _find_tesseract()
-    if found:
-        pytesseract.pytesseract.tesseract_cmd = found
-
-
 _tesseract_found = _find_tesseract()
 if _tesseract_found:
     pytesseract.pytesseract.tesseract_cmd = _tesseract_found
@@ -116,8 +108,6 @@ class ScreenRegion:
 class OcrService:
     def extract_text(self, image: Image.Image, psm: Optional[int] = None) -> str:
         try:
-            if not pytesseract.pytesseract.tesseract_cmd:
-                _set_tesseract_path()
             if psm is not None:
                 proc = _denoise(image)
                 proc = _monochromise(proc)
