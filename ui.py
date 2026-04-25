@@ -1,17 +1,89 @@
+"""
+PokeMacro — native AppKit (PyObjC) UI.
+"""
+from __future__ import annotations
+
 import queue
 import subprocess
 import sys
 import threading
-import tkinter as tk
 from pathlib import Path
-from tkinter import messagebox, ttk
+from typing import Callable
 
+import objc
 import yaml
+from AppKit import (
+    NSAlert,
+    NSAlertFirstButtonReturn,
+    NSApplication,
+    NSApplicationActivationPolicyRegular,
+    NSBackingStoreBuffered,
+    NSBezierPath,
+    NSBezelStyleRounded,
+    NSBezelStyleTexturedRounded,
+    NSButton,
+    NSButtonTypeMomentaryPushIn,
+    NSButtonTypeRadio,
+    NSButtonTypeSwitch,
+    NSColor,
+    NSCommandKeyMask,
+    NSEdgeInsets,
+    NSFont,
+    NSLayoutAttributeCenterY,
+    NSLineBreakByTruncatingTail,
+    NSMenu,
+    NSMenuItem,
+    NSNoTabsNoBorder,
+    NSPasteboard,
+    NSPopUpButton,
+    NSStringPboardType,
+    NSStackView,
+    NSStackViewDistributionFill,
+    NSStackViewGravityTop,
+    NSTabView,
+    NSTabViewItem,
+    NSTerminateCancel,
+    NSTerminateNow,
+    NSTextField,
+    NSTextView,
+    NSUserInterfaceLayoutOrientationHorizontal,
+    NSUserInterfaceLayoutOrientationVertical,
+    NSView,
+    NSVisualEffectBlendingModeBehindWindow,
+    NSVisualEffectMaterialSidebar,
+    NSVisualEffectStateActive,
+    NSVisualEffectView,
+    NSWindow,
+    NSWindowStyleMaskClosable,
+    NSWindowStyleMaskMiniaturizable,
+    NSWindowStyleMaskResizable,
+    NSWindowStyleMaskTitled,
+    NSLayoutAttributeLeading,
+    NSLayoutPriorityDefaultHigh,
+    NSLayoutPriorityDefaultLow,
+    NSOnState,
+    NSOffState,
+    NSSecureTextField,
+    NSScrollView,
+)
+
+from Foundation import (
+    NSMakeRect,
+    NSOperationQueue,
+    NSObject,
+    NSMutableAttributedString,
+    NSTimer,
+)
 
 PROJECT_ROOT = Path(__file__).resolve().parent
 CONFIG_PATH = PROJECT_ROOT / "configs.yaml"
 _venv_python = PROJECT_ROOT / "ENV" / "bin" / "python"
 VENV_PYTHON = _venv_python if _venv_python.exists() else Path(sys.executable)
+
+SIDEBAR_W = 208.0
+TOPBAR_H = 50.0
+UI_PAD = 20.0
+LABEL_W = 128.0
 
 POSITION_KEYS = [
     ("EggManPosition", "Egg Man Position"),
@@ -27,24 +99,172 @@ POSITION_KEYS = [
     ("Pokeball", "Pokeball"),
 ]
 
-_IDLE_DOT = "#B5B5BA"
-_RUN_DOT = "#34C759"
-_STOP_DOT = "#FF3B30"
-_MUTED = "#86868B"
-_HAIRLINE = "#D8D8DC"
+_IDLE = None
+_RUN = None
+_STOP = None
+_MUTED = None
+
+
+def _apple_colors() -> None:
+    global _IDLE, _RUN, _STOP, _MUTED
+    if _MUTED is not None:
+        return
+    _IDLE = NSColor.colorWithRed_green_blue_alpha_(0.71, 0.71, 0.73, 1.0)
+    _RUN = NSColor.systemGreenColor()
+    _STOP = NSColor.systemRedColor()
+    _MUTED = NSColor.secondaryLabelColor()
+
+
+def _h_stack() -> NSStackView:
+    s = NSStackView.stackViewWithViews_([])
+    s.setOrientation_(NSUserInterfaceLayoutOrientationHorizontal)
+    s.setSpacing_(8.0)
+    s.setAlignment_(NSLayoutAttributeCenterY)
+    return s
+
+
+def _v_stack() -> NSStackView:
+    s = NSStackView.stackViewWithViews_([])
+    s.setOrientation_(NSUserInterfaceLayoutOrientationVertical)
+    s.setSpacing_(6.0)
+    s.setAlignment_(NSLayoutAttributeLeading)
+    return s
+
+
+def _label_small(s: str) -> NSTextField:
+    t = NSTextField.labelWithString_(s)
+    t.setTextColor_(_MUTED or NSColor.secondaryLabelColor())
+    t.setFont_(NSFont.systemFontOfSize_(11.0))
+    t.setLineBreakMode_(NSLineBreakByTruncatingTail)
+    return t
+
+
+def _section_title(s: str) -> NSTextField:
+    t = NSTextField.labelWithString_(s)
+    t.setFont_(NSFont.boldSystemFontOfSize_(13.0))
+    t.setTextColor_(NSColor.labelColor())
+    return t
+
+
+def _int_field(f: NSTextField) -> int:
+    st = f.stringValue() or ""
+    st = st.strip() or "0"
+    if st.lstrip("-").isdigit() or (st[0:1] in "-" and st[1:].isdigit()):
+        try:
+            return int(st)
+        except ValueError:
+            return 0
+    return 0
+
+
+def _push_button(target: object, action: bytes, title: str) -> NSButton:
+    b = NSButton.alloc().init()
+    b.setButtonType_(NSButtonTypeMomentaryPushIn)
+    b.setBezelStyle_(NSBezelStyleRounded)
+    b.setTitle_(title)
+    b.setTarget_(target)
+    b.setAction_(action)
+    return b
+
+
+def _ac_save(target: object) -> NSButton:
+    b = _push_button(target, b"saveConfig:", "Save")
+    b.setKeyEquivalent_("s")
+    b.setKeyEquivalentModifierMask_(NSCommandKeyMask)
+    return b
+
+
+def _ac_prefs(target: object) -> NSMenuItem:
+    m = (
+        NSMenuItem.alloc()
+        .initWithTitle_action_keyEquivalent_("Preferences…", b"openPreferences:", ",")
+    )
+    m.setKeyEquivalentModifierMask_(NSCommandKeyMask)
+    m.setTarget_(target)
+    return m
+
+
+def _ac_hide() -> NSMenuItem:
+    m = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_("Hide PokeMacro", b"hide:", "h")
+    m.setKeyEquivalentModifierMask_(NSCommandKeyMask)
+    return m
+
+
+def _ac_about(target: object) -> NSMenuItem:
+    m = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_("About PokeMacro", b"showAbout:", "")
+    m.setTarget_(target)
+    return m
+
+
+def _set_layer_bg(v: NSView, color: NSColor) -> None:
+    v.setWantsLayer_(True)
+    layer = v.layer()
+    if layer is None or not hasattr(color, "CGColor"):
+        return
+    cg = color.CGColor()
+    if cg is not None:
+        layer.setBackgroundColor_(cg)  # type: ignore[union-attr]
+
+
+def _pin_edges(inner: NSView, outer: NSView) -> None:
+    inner.setTranslatesAutoresizingMaskIntoConstraints_(False)
+    if inner.leadingAnchor() and outer.leadingAnchor():
+        inner.leadingAnchor().constraintEqualToAnchor_(outer.leadingAnchor()).setActive_(True)
+        inner.trailingAnchor().constraintEqualToAnchor_(outer.trailingAnchor()).setActive_(
+            True
+        )
+        inner.topAnchor().constraintEqualToAnchor_(outer.topAnchor()).setActive_(True)
+        inner.bottomAnchor().constraintEqualToAnchor_(outer.bottomAnchor()).setActive_(True)
+
+
+class _StatusDotView(NSView):
+    def initWithFrame_(self, frame):
+        self = objc.super(_StatusDotView, self).initWithFrame_(frame)
+        if self is None:
+            return None
+        self._fill: NSColor = _IDLE or NSColor.tertiaryLabelColor()
+        return self
+
+    def isOpaque(self) -> bool:
+        return False
+
+    def setFillColor_(self, c: NSColor) -> None:
+        self._fill = c
+        self.setNeedsDisplay_(True)
+
+    def drawRect_(self, rect):
+        b = self.bounds()
+        p = NSBezierPath.bezierPathWithOvalInRect_(b)
+        self._fill.setFill()
+        p.fill()
+
+
+class _AdaptiveLogTextView(NSTextView):
+    def viewDidChangeEffectiveAppearance(self) -> None:
+        objc.super(_AdaptiveLogTextView, self).viewDidChangeEffectiveAppearance()
+        self._pm_apply_appearance()
+
+    @objc.python_method
+    def _pm_apply_appearance(self) -> None:
+        self.setDrawsBackground_(True)
+        self.setBackgroundColor_(NSColor.textBackgroundColor())
+        self.setTextColor_(NSColor.textColor())
+
+    def awakeFromNib(self) -> None:
+        if hasattr(self, "_pm_apply_appearance"):
+            self._pm_apply_appearance()
 
 
 class ConfigManager:
     def load(self) -> dict:
         try:
-            with open(CONFIG_PATH, "r") as f:
-                data = yaml.safe_load(f) or {}
-            return data
+            with open(CONFIG_PATH, "r", encoding="utf-8") as f:
+                return yaml.safe_load(f) or {}
         except FileNotFoundError:
             return self._default_config()
 
     def save(self, data: dict) -> None:
-        with open(CONFIG_PATH, "w") as f:
+        with open(CONFIG_PATH, "w", encoding="utf-8") as f:
             yaml.dump(data, f, default_flow_style=False, allow_unicode=True, sort_keys=False)
 
     def _default_config(self) -> dict:
@@ -68,11 +288,11 @@ class ConfigManager:
 
 
 class SubprocessManager:
-    def __init__(self):
+    def __init__(self) -> None:
         self._proc: subprocess.Popen | None = None
         self._log_thread: threading.Thread | None = None
 
-    def start(self, log_queue: queue.Queue, on_exit) -> None:
+    def start(self, log_queue: queue.Queue, on_exit: Callable[[int], None]) -> None:
         self._proc = subprocess.Popen(
             [str(VENV_PYTHON), "-m", "src.main"],
             cwd=str(PROJECT_ROOT),
@@ -88,17 +308,21 @@ class SubprocessManager:
         )
         self._log_thread.start()
 
-    def _stream_logs(self, log_queue: queue.Queue, on_exit) -> None:
+    def _stream_logs(
+        self, log_queue: queue.Queue, on_exit: Callable[[int], None]
+    ) -> None:
+        assert self._proc and self._proc.stdout
         for line in self._proc.stdout:
             log_queue.put(line.rstrip("\n"))
         self._proc.wait()
-        on_exit(self._proc.returncode)
+        code = int(self._proc.returncode or 0)
+        NSOperationQueue.mainQueue().addOperationWithBlock_(lambda: on_exit(code))
 
     def stop(self) -> None:
         if self._proc and self._proc.poll() is None:
             self._proc.terminate()
 
-            def _wait_kill():
+            def _wait_kill() -> None:
                 try:
                     self._proc.wait(timeout=3)
                 except subprocess.TimeoutExpired:
@@ -110,430 +334,746 @@ class SubprocessManager:
         return self._proc is not None and self._proc.poll() is None
 
 
-class PokeMacroApp(tk.Tk):
-    def __init__(self):
-        super().__init__()
-        self.title("PokeMacro")
-        self.minsize(860, 620)
-        self.resizable(True, True)
-
+class PokeMacroController(NSObject):
+    def init(self):
+        self = objc.super(PokeMacroController, self).init()
+        if self is None:
+            return None
+        _apple_colors()
         self._config_manager = ConfigManager()
         self._subprocess_manager = SubprocessManager()
-        self._config = self._config_manager.load()
+        self._config: dict = self._config_manager.load()
         self._is_running = False
-        self._log_queue: queue.Queue = queue.Queue()
-        self._all_config_widgets: list = []
-
-        self._apply_styles()
-        self._build_ui()
-        self._load_all_fields()
-        self.protocol("WM_DELETE_WINDOW", self._on_close)
-        try:
-            self.createcommand("tk::mac::Quit", self._on_close)
-        except Exception:
-            pass
-        self.after(100, self._poll_log_queue)
-
-    # ── Styling ───────────────────────────────────────────────────────────────
-
-    def _apply_styles(self) -> None:
-        style = ttk.Style(self)
-        # Prefer native aqua theme on macOS — gives real AppKit controls.
-        for theme in ("aqua", "clam"):
-            try:
-                style.theme_use(theme)
-                self._theme = theme
-                break
-            except tk.TclError:
-                continue
-
-        # Typography only — let aqua render the controls themselves.
-        style.configure("TLabel", font=("SF Pro Text", 13))
-        style.configure("Muted.TLabel", font=("SF Pro Text", 12), foreground=_MUTED)
-        style.configure("Title.TLabel", font=("SF Pro Display", 17, "bold"))
-        style.configure("Status.TLabel", font=("SF Pro Text", 12), foreground=_MUTED)
-        style.configure("Section.TLabelframe.Label", font=("SF Pro Text", 12, "bold"))
-        style.configure("TCheckbutton", font=("SF Pro Text", 13))
-        style.configure("TButton", font=("SF Pro Text", 13))
-        style.configure("TNotebook.Tab", font=("SF Pro Text", 12), padding=[16, 6])
-
-    # ── UI construction ───────────────────────────────────────────────────────
-
-    def _build_ui(self) -> None:
-        self._build_header()
-        self._notebook = ttk.Notebook(self)
-        self._notebook.pack(fill="both", expand=True, padx=14, pady=(4, 14))
-
-        self._build_general_tab(self._notebook)
-        self._build_wishlist_tab(self._notebook)
-        self._build_positions_tab(self._notebook)
-        self._build_logs_tab(self._notebook)
-
-    def _build_header(self) -> None:
-        bar = ttk.Frame(self, padding=(20, 18, 20, 14))
-        bar.pack(fill="x")
-
-        left = ttk.Frame(bar)
-        left.pack(side="left")
-
-        ttk.Label(left, text="PokeMacro", style="Title.TLabel").pack(side="left", padx=(0, 16))
-
-        # Smooth canvas-drawn status dot — looks far better than a unicode bullet.
-        self._status_dot_canvas = tk.Canvas(left, width=12, height=12,
-                                            highlightthickness=0, bd=0)
-        self._status_dot_canvas.pack(side="left", padx=(0, 8), pady=(2, 0))
-        self._status_dot = self._status_dot_canvas.create_oval(
-            1, 1, 11, 11, fill=_IDLE_DOT, outline=""
-        )
-
-        self._status_label = ttk.Label(left, text="Idle", style="Status.TLabel")
-        self._status_label.pack(side="left")
-
-        self._start_stop_btn = ttk.Button(bar, text="Start", command=self._toggle_run)
-        self._start_stop_btn.pack(side="right", ipadx=8)
-
-    def _build_general_tab(self, notebook: ttk.Notebook) -> None:
-        frame = ttk.Frame(notebook, padding=22)
-        notebook.add(frame, text="General")
-
-        def row(r, label, widget):
-            ttk.Label(frame, text=label).grid(row=r, column=0, sticky="w", pady=7, padx=(0, 18))
-            widget.grid(row=r, column=1, sticky="ew", pady=7)
-            frame.columnconfigure(1, weight=1)
-
-        self._gen_hunting_mode = ttk.Combobox(frame, values=["egg", "roam"], state="readonly", width=14)
-        row(0, "Hunting Mode", self._gen_hunting_mode)
-
-        self._gen_username_var = tk.StringVar()
-        username_entry = ttk.Entry(frame, textvariable=self._gen_username_var)
-        row(1, "Username", username_entry)
-
-        self._gen_mode = ttk.Combobox(frame, values=["Default", "Fast"], state="readonly", width=14)
-        row(2, "Mode", self._gen_mode)
-
-        ttk.Separator(frame, orient="horizontal").grid(row=3, column=0, columnspan=2, sticky="ew", pady=(14, 10))
-
-        bool_fields = [
-            ("IsReskin", "Is Reskin"),
-            ("IsShiny", "Is Shiny"),
-            ("IsGradient", "Is Gradient"),
-            ("IsAny", "Is Any"),
-            ("IsGood", "Is Good"),
-        ]
-        self._gen_bool_vars: dict[str, tk.BooleanVar] = {}
-        for i, (key, label) in enumerate(bool_fields):
-            var = tk.BooleanVar()
-            cb = ttk.Checkbutton(frame, text=label, variable=var)
-            cb.grid(row=4 + i, column=0, columnspan=2, sticky="w", pady=2)
-            self._gen_bool_vars[key] = var
-            self._all_config_widgets.append(cb)
-
-        save_btn = ttk.Button(frame, text="Save Config", command=self._save_config)
-        save_btn.grid(row=4 + len(bool_fields) + 1, column=0, columnspan=2, sticky="w", pady=(22, 0))
-
-        self._all_config_widgets += [self._gen_hunting_mode, username_entry, self._gen_mode]
-
-    def _build_wishlist_tab(self, notebook: ttk.Notebook) -> None:
-        outer = ttk.Frame(notebook, padding=18)
-        notebook.add(outer, text="Wishlist")
-        ttk.Label(outer, style="Muted.TLabel",
-                  text="One item per line, or comma-separated.").pack(anchor="w", pady=(0, 12))
-
-        self._wish_texts: dict[str, tk.Text] = {}
-        for list_name, height in [("Reskins", 4), ("Gradients", 4), ("Roamings", 7), ("Special", 7)]:
-            lf = ttk.LabelFrame(outer, text=" " + list_name + " ", padding=8)
-            lf.pack(fill="x", pady=(0, 10))
-            txt = tk.Text(lf, height=height, wrap="word", relief="flat",
-                          font=("SF Mono", 12), bg="#FFFFFF", fg="#1D1D1F",
-                          insertbackground="#1D1D1F", bd=0,
-                          highlightthickness=1, highlightbackground=_HAIRLINE,
-                          highlightcolor=_HAIRLINE, padx=8, pady=6)
-            sb = ttk.Scrollbar(lf, orient="vertical", command=txt.yview)
-            txt.configure(yscrollcommand=sb.set)
-            txt.pack(side="left", fill="both", expand=True)
-            sb.pack(side="right", fill="y")
-            self._wish_texts[list_name] = txt
-            self._all_config_widgets.append(txt)
-
-    def _build_positions_tab(self, notebook: ttk.Notebook) -> None:
-        outer = ttk.Frame(notebook)
-        notebook.add(outer, text="Positions")
-
-        canvas = tk.Canvas(outer, highlightthickness=0, bd=0)
-        sb = ttk.Scrollbar(outer, orient="vertical", command=canvas.yview)
-        canvas.configure(yscrollcommand=sb.set)
-        sb.pack(side="right", fill="y")
-        canvas.pack(side="left", fill="both", expand=True)
-
-        content = ttk.Frame(canvas, padding=18)
-        window_id = canvas.create_window((0, 0), window=content, anchor="nw")
-
-        def _on_configure(event):
-            canvas.configure(scrollregion=canvas.bbox("all"))
-
-        def _on_canvas_resize(event):
-            canvas.itemconfig(window_id, width=event.width)
-
-        content.bind("<Configure>", _on_configure)
-        canvas.bind("<Configure>", _on_canvas_resize)
-
-        def _on_mousewheel(event):
-            canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
-
-        canvas.bind_all("<MouseWheel>", _on_mousewheel)
-
-        vcmd = (self.register(lambda s: s == "" or (s.lstrip("-").isdigit())), "%P")
-
-        def coord_pair(parent, row, label, ref_dict, key):
-            ttk.Label(parent, text=label, width=22, anchor="w").grid(row=row, column=0, sticky="w", pady=3)
-            x_entry = ttk.Entry(parent, width=7, validate="key", validatecommand=vcmd)
-            y_entry = ttk.Entry(parent, width=7, validate="key", validatecommand=vcmd)
-            ttk.Label(parent, text="X", foreground=_MUTED).grid(row=row, column=1, padx=(12, 4))
-            x_entry.grid(row=row, column=2)
-            ttk.Label(parent, text="Y", foreground=_MUTED).grid(row=row, column=3, padx=(14, 4))
-            y_entry.grid(row=row, column=4)
-            ref_dict[key] = (x_entry, y_entry)
-            self._all_config_widgets += [x_entry, y_entry]
-
-        pos_lf = ttk.LabelFrame(content, text="Positions", padding=10)
-        pos_lf.pack(fill="x", pady=(0, 10))
-        self._pos_entries: dict[str, tuple] = {}
-        for i, (key, label) in enumerate(POSITION_KEYS):
-            coord_pair(pos_lf, i, label, self._pos_entries, key)
-
-        regions = [
-            ("Chat Window", "ChatWindow"),
-            ("Encounter Name Region", "EncounterNameRegion"),
-            ("Sprite Region", "SpriteRegion"),
-        ]
-        self._region_entries: dict[str, dict] = {}
-        for title, key in regions:
-            lf = ttk.LabelFrame(content, text=title, padding=10)
-            lf.pack(fill="x", pady=(0, 10))
-            d: dict[str, tuple] = {}
-            coord_pair(lf, 0, "Left Corner", d, "LeftCorner")
-            coord_pair(lf, 1, "Right Corner", d, "RightCorner")
-            self._region_entries[key] = d
-
-    def _build_logs_tab(self, notebook: ttk.Notebook) -> None:
-        frame = ttk.Frame(notebook, padding=18)
-        notebook.add(frame, text="Logs")
-
-        # Discord card
-        disc_lf = ttk.LabelFrame(frame, text=" Discord Notifications ", padding=14)
-        disc_lf.pack(fill="x", pady=(0, 14))
-        disc_lf.columnconfigure(1, weight=1)
-
-        ttk.Label(disc_lf, text="Bot Token").grid(row=0, column=0, sticky="w", pady=6, padx=(0, 14))
-        token_frame = ttk.Frame(disc_lf)
-        token_frame.grid(row=0, column=1, sticky="ew", pady=6)
-
-        self._disc_token_entry = ttk.Entry(token_frame, show="•")
-        self._disc_token_entry.pack(side="left", fill="x", expand=True)
+        self._log_queue: queue.Queue[str] = queue.Queue()
+        self._all_config_controls: list = []
         self._token_shown = False
+        self._log_timer: NSTimer | None = None
+        self._status_reset_timer: NSTimer | None = None
+        self._sidebar_radios: list[NSButton] = []
+        self._side_split: NSView | None = None
 
-        def toggle_token():
-            self._token_shown = not self._token_shown
-            self._disc_token_entry.config(show="" if self._token_shown else "•")
-            show_btn.config(text="Hide" if self._token_shown else "Show")
+        self._build_panels()
+        self._build_window()
+        self._load_all_fields()
+        self._arm_log_polling()
+        return self
 
-        show_btn = ttk.Button(token_frame, text="Show", width=6, command=toggle_token)
-        show_btn.pack(side="left", padx=(8, 0))
+    @objc.python_method
+    def _form_pair(self, a: str, field: NSView) -> NSView:
+        r = _h_stack()
+        r.setSpacing_(12.0)
+        lab = NSTextField.labelWithString_(a)
+        lab.setFont_(NSFont.systemFontOfSize_(13.0))
+        if hasattr(lab, "setContentHuggingPriority_forOrientation_"):
+            lab.setContentHuggingPriority_forOrientation_(
+                NSLayoutPriorityDefaultHigh, NSUserInterfaceLayoutOrientationHorizontal
+            )
+        if lab.widthAnchor():
+            lab.widthAnchor().constraintEqualToConstant_(LABEL_W).setActive_(True)
+        r.addView_inGravity_(lab, NSStackViewGravityTop)
+        r.addView_inGravity_(field, NSStackViewGravityTop)
+        if hasattr(field, "setContentHuggingPriority_forOrientation_"):
+            field.setContentHuggingPriority_forOrientation_(
+                250, NSUserInterfaceLayoutOrientationHorizontal
+            )
+        r.setDistribution_(NSStackViewDistributionFill)
+        return r
 
-        ttk.Label(disc_lf, text="Server ID").grid(row=1, column=0, sticky="w", pady=6, padx=(0, 14))
-        vcmd = (self.register(lambda s: s == "" or s.isdigit()), "%P")
-        self._disc_server_id_entry = ttk.Entry(disc_lf, width=22, validate="key", validatecommand=vcmd)
-        self._disc_server_id_entry.grid(row=1, column=1, sticky="w", pady=6)
+    @objc.python_method
+    def _build_panels(self) -> None:
+        self._tab = NSTabView.alloc().init()
+        self._tab.setTabViewType_(NSNoTabsNoBorder)
+        for label, build in [
+            ("General", self._tab_general),
+            ("Wishlist", self._tab_wishlist),
+            ("Positions", self._tab_positions),
+            ("Logs", self._tab_logs),
+        ]:
+            view = build()
+            item = NSTabViewItem.alloc().initWithIdentifier_(label)
+            item.setLabel_(label)
+            item.setView_(view)
+            self._tab.addTabViewItem_(item)
+        if hasattr(self._tab, "setTranslatesAutoresizingMaskIntoConstraints_"):
+            self._tab.setTranslatesAutoresizingMaskIntoConstraints_(False)
 
-        ttk.Button(disc_lf, text="Save", command=self._save_config)\
-            .grid(row=2, column=0, columnspan=2, sticky="w", pady=(12, 0))
-
-        self._all_config_widgets += [self._disc_token_entry, self._disc_server_id_entry]
-
-        # Log header row
-        header = ttk.Frame(frame)
-        header.pack(fill="x", pady=(0, 8))
-        ttk.Label(header, text="Output", style="Section.TLabelframe.Label").pack(side="left")
-        ttk.Button(header, text="Copy", command=self._copy_logs).pack(side="right", padx=(6, 0))
-        ttk.Button(header, text="Clear", command=self._clear_logs).pack(side="right")
-
-        # Log output card with hairline border
-        log_wrap = tk.Frame(frame, bg=_HAIRLINE, bd=0)
-        log_wrap.pack(fill="both", expand=True)
-        log_container = tk.Frame(log_wrap, bg="#1C1C1E", bd=0)
-        log_container.pack(fill="both", expand=True, padx=1, pady=1)
-
-        self._log_text = tk.Text(
-            log_container,
-            state="disabled",
-            wrap="word",
-            bg="#1C1C1E",
-            fg="#E5E5EA",
-            insertbackground="#E5E5EA",
-            font=("SF Mono", 12),
-            relief="flat",
-            bd=0,
-            padx=14,
-            pady=12,
-            highlightthickness=0,
+    @objc.python_method
+    def _build_window(self) -> None:
+        rect = NSMakeRect(120, 120, 960, 680)
+        style = (
+            NSWindowStyleMaskTitled
+            | NSWindowStyleMaskClosable
+            | NSWindowStyleMaskMiniaturizable
+            | NSWindowStyleMaskResizable
         )
-        log_sb = ttk.Scrollbar(log_container, orient="vertical", command=self._log_text.yview)
-        self._log_text.configure(yscrollcommand=log_sb.set)
-        log_sb.pack(side="right", fill="y")
-        self._log_text.pack(fill="both", expand=True)
+        self._window = NSWindow.alloc().initWithContentRect_styleMask_backing_defer_(
+            rect, style, NSBackingStoreBuffered, False
+        )
+        self._window.setTitle_("PokeMacro")
+        self._window.setMinSize_((900, 620))
+        self._window.setDelegate_(self)
+        self._window.setReleasedWhenClosed_(False)
 
-    # ── Config I/O ────────────────────────────────────────────────────────────
+        top = self._make_topbar()
+        self._side_split = self._make_main_split()
+        sp = _v_stack()
+        sp.setSpacing_(0.0)
+        if hasattr(self._side_split, "setContentHuggingPriority_forOrientation_"):
+            self._side_split.setContentHuggingPriority_forOrientation_(
+                1, NSUserInterfaceLayoutOrientationVertical
+            )
+        sp.addView_inGravity_(top, NSStackViewGravityTop)
+        sp.addView_inGravity_(self._h_separator(), NSStackViewGravityTop)
+        sp.addView_inGravity_(self._side_split, NSStackViewGravityTop)
+        sp.setTranslatesAutoresizingMaskIntoConstraints_(False)
+        if self._side_split and self._side_split.heightAnchor():
+            self._side_split.heightAnchor().constraintGreaterThanOrEqualToConstant_(
+                500.0
+            ).setActive_(True)
+        self._root = sp
+        self._window.setContentView_(sp)
+        self._window.makeKeyAndOrderFront_(None)
 
-    def _load_all_fields(self) -> None:
-        cfg = self._config
-        self._gen_hunting_mode.set(cfg.get("HuntingMode", "egg"))
-        self._gen_username_var.set(cfg.get("Username", ""))
-        self._gen_mode.set(cfg.get("Mode", "Default"))
-        for key, var in self._gen_bool_vars.items():
-            var.set(bool(cfg.get(key, False)))
+    @objc.python_method
+    def _h_separator(self) -> NSView:
+        v = NSView.alloc().initWithFrame_(NSMakeRect(0, 0, 10, 1))
+        _set_layer_bg(v, NSColor.separatorColor())
+        v.setTranslatesAutoresizingMaskIntoConstraints_(False)
+        if v.heightAnchor():
+            v.heightAnchor().constraintEqualToConstant_(1.0).setActive_(True)
+        return v
 
-        wishlist = cfg.get("Wishlist", {})
-        for list_name, txt in self._wish_texts.items():
-            txt.delete("1.0", "end")
-            txt.insert("1.0", "\n".join(wishlist.get(list_name, [])))
+    @objc.python_method
+    def _make_topbar(self) -> NSView:
+        bar = _h_stack()
+        bar.setEdgeInsets_(NSEdgeInsets(6, 16, 6, 16))
+        bar.setAlignment_(NSLayoutAttributeCenterY)
+        bar.setDistribution_(NSStackViewDistributionFill)
+        if bar.heightAnchor():
+            bar.heightAnchor().constraintEqualToConstant_(TOPBAR_H).setActive_(True)
+        # Status
+        self._status_dot = _StatusDotView.alloc().initWithFrame_(NSMakeRect(0, 0, 8, 8))
+        self._status_dot.setFillColor_(_IDLE)
+        if self._status_dot.widthAnchor() and self._status_dot.heightAnchor():
+            self._status_dot.widthAnchor().constraintEqualToConstant_(8.0).setActive_(True)
+            self._status_dot.heightAnchor().constraintEqualToConstant_(8.0).setActive_(True)
+        self._status = NSTextField.labelWithString_("Idle")
+        self._status.setTextColor_(_MUTED)
+        self._status.setFont_(NSFont.systemFontOfSize_(12.0))
+        st_row = _h_stack()
+        st_row.setSpacing_(6.0)
+        st_row.addView_inGravity_(self._status_dot, NSStackViewGravityTop)
+        st_row.addView_inGravity_(self._status, NSStackViewGravityTop)
+        # Flex
+        flex = NSView.alloc().init()
+        if hasattr(flex, "setContentHuggingPriority_forOrientation_"):
+            flex.setContentHuggingPriority_forOrientation_(
+                1, NSUserInterfaceLayoutOrientationHorizontal
+            )
+        # Actions
+        self._save = _ac_save(self)
+        self._go = _push_button(self, b"toggleRun:", "Start")
+        if hasattr(self._go, "setKeyEquivalent_"):
+            self._go.setKeyEquivalent_("r")
+        bar.addView_inGravity_(st_row, NSStackViewGravityTop)
+        bar.addView_inGravity_(flex, NSStackViewGravityTop)
+        bar.addView_inGravity_(self._save, NSStackViewGravityTop)
+        bar.addView_inGravity_(self._go, NSStackViewGravityTop)
+        _set_layer_bg(bar, NSColor.controlBackgroundColor())
+        bar.setTranslatesAutoresizingMaskIntoConstraints_(False)
+        return bar
 
-        positions = cfg.get("Positions", {})
-        for key, (xe, ye) in self._pos_entries.items():
-            pair = positions.get(key, [0, 0])
-            xe.delete(0, "end"); xe.insert(0, str(pair[0]))
-            ye.delete(0, "end"); ye.insert(0, str(pair[1]))
+    @objc.python_method
+    def _make_main_split(self) -> NSView:
+        eff = NSVisualEffectView.alloc().init()
+        eff.setBlendingMode_(NSVisualEffectBlendingModeBehindWindow)
+        eff.setMaterial_(NSVisualEffectMaterialSidebar)
+        eff.setState_(NSVisualEffectStateActive)
+        eff.setWantsLayer_(True)
+        eff.setTranslatesAutoresizingMaskIntoConstraints_(False)
+        vs = _v_stack()
+        vs.setEdgeInsets_(NSEdgeInsets(12, 8, 12, 8))
+        vs.setSpacing_(4.0)
+        for i, title in enumerate(["General", "Wishlist", "Positions", "Logs"]):
+            b = NSButton.alloc().init()
+            b.setButtonType_(NSButtonTypeRadio)
+            b.setBezelStyle_(NSBezelStyleTexturedRounded)
+            b.setTitle_(title)
+            b.setTarget_(self)
+            b.setAction_(b"selectSection:")
+            b.setTag_(i)
+            self._sidebar_radios.append(b)
+            vs.addView_inGravity_(b, NSStackViewGravityTop)
+        fsp = NSView.alloc().init()
+        if hasattr(fsp, "setContentHuggingPriority_forOrientation_"):
+            fsp.setContentHuggingPriority_forOrientation_(
+                1, NSUserInterfaceLayoutOrientationVertical
+            )
+        vs.addView_inGravity_(fsp, NSStackViewGravityTop)
+        if self._sidebar_radios:
+            self._sidebar_radios[0].setState_(NSOnState)
+        eff.addSubview_(vs)
+        _pin_edges(vs, eff)
+        if eff.widthAnchor():
+            eff.widthAnchor().constraintEqualToConstant_(SIDEBAR_W).setActive_(True)
+        vline = NSView.alloc().init()
+        vline.setTranslatesAutoresizingMaskIntoConstraints_(False)
+        _set_layer_bg(vline, NSColor.separatorColor())
+        if vline.widthAnchor():
+            vline.widthAnchor().constraintEqualToConstant_(1.0).setActive_(True)
+        main = NSView.alloc().init()
+        main.setTranslatesAutoresizingMaskIntoConstraints_(False)
+        _set_layer_bg(main, NSColor.textBackgroundColor())
+        main.addSubview_(self._tab)
+        _pin_edges(self._tab, main)
+        h = _h_stack()
+        h.setSpacing_(0.0)
+        h.setDistribution_(NSStackViewDistributionFill)
+        h.addView_inGravity_(eff, NSStackViewGravityTop)
+        h.addView_inGravity_(vline, NSStackViewGravityTop)
+        h.addView_inGravity_(main, NSStackViewGravityTop)
+        if hasattr(vline, "setContentHuggingPriority_forOrientation_"):
+            vline.setContentHuggingPriority_forOrientation_(
+                NSLayoutPriorityDefaultHigh, NSUserInterfaceLayoutOrientationHorizontal
+            )
+        h.setTranslatesAutoresizingMaskIntoConstraints_(False)
+        if hasattr(eff, "setContentHuggingPriority_forOrientation_"):
+            eff.setContentHuggingPriority_forOrientation_(
+                NSLayoutPriorityDefaultHigh, NSUserInterfaceLayoutOrientationHorizontal
+            )
+        if hasattr(main, "setContentHuggingPriority_forOrientation_"):
+            main.setContentHuggingPriority_forOrientation_(
+                1, NSUserInterfaceLayoutOrientationHorizontal
+            )
+        if hasattr(h, "setClipsToBounds_"):
+            h.setClipsToBounds_(True)
+        return h
 
-        for region_key, entries in self._region_entries.items():
-            region = cfg.get(region_key, {})
-            for corner_key, (xe, ye) in entries.items():
-                pair = region.get(corner_key, [0, 0])
-                xe.delete(0, "end"); xe.insert(0, str(pair[0]))
-                ye.delete(0, "end"); ye.insert(0, str(pair[1]))
+    @objc.python_method
+    def _wrap_sc(self, doc: NSView, min_h: float) -> NSScrollView:
+        sc = NSScrollView.alloc().init()
+        sc.setDocumentView_(doc)
+        sc.setHasVerticalScroller_(True)
+        sc.setAutohidesScrollers_(True)
+        sc.setBorderType_(0)
+        sc.setDrawsBackground_(True)
+        if hasattr(sc, "setTranslatesAutoresizingMaskIntoConstraints_"):
+            sc.setTranslatesAutoresizingMaskIntoConstraints_(False)
+        h = sc.heightAnchor().constraintEqualToConstant_(min_h)
+        h.setActive_(True)
+        return sc
 
-        self._disc_token_entry.delete(0, "end")
-        self._disc_token_entry.insert(0, cfg.get("DiscordBotToken", ""))
-        self._disc_server_id_entry.delete(0, "end")
-        self._disc_server_id_entry.insert(0, str(cfg.get("ServerID", 0)))
+    @objc.python_method
+    def _tab_general(self) -> NSView:
+        v = _v_stack()
+        v.setEdgeInsets_(NSEdgeInsets(UI_PAD, UI_PAD, UI_PAD, UI_PAD))
+        v.setSpacing_(14.0)
+        v.addView_inGravity_(_section_title("Hunt"), NSStackViewGravityTop)
+        self._hunt = NSPopUpButton.alloc().init()
+        self._hunt.addItemsWithTitles_(["egg", "roam"])
+        self._all_config_controls.append(self._hunt)
+        v.addView_inGravity_(
+            self._form_pair("Hunting mode", self._hunt), NSStackViewGravityTop
+        )
+        self._user = NSTextField.alloc().init()
+        self._user.setStringValue_("")
+        self._all_config_controls.append(self._user)
+        v.addView_inGravity_(self._form_pair("Username", self._user), NSStackViewGravityTop)
+        self._fast = NSPopUpButton.alloc().init()
+        self._fast.addItemsWithTitles_(["Default", "Fast"])
+        self._all_config_controls.append(self._fast)
+        v.addView_inGravity_(self._form_pair("Speed", self._fast), NSStackViewGravityTop)
+        v.addView_inGravity_(_section_title("Filters"), NSStackViewGravityTop)
+        self._bools: dict[str, NSButton] = {}
+        for key, t in [
+            ("IsReskin", "Reskin"),
+            ("IsShiny", "Shiny"),
+            ("IsGradient", "Gradient"),
+            ("IsAny", "Any"),
+            ("IsGood", "Good"),
+        ]:
+            b = NSButton.alloc().init()
+            b.setButtonType_(NSButtonTypeSwitch)
+            b.setTitle_(t)
+            self._bools[key] = b
+            self._all_config_controls.append(b)
+            v.addView_inGravity_(b, NSStackViewGravityTop)
+        w = NSView.alloc().init()
+        w.setTranslatesAutoresizingMaskIntoConstraints_(False)
+        w.addSubview_(v)
+        _pin_edges(v, w)
+        return w
 
-    def _collect_config(self) -> dict:
-        def read_text(widget: tk.Text) -> list:
-            raw = widget.get("1.0", "end").strip()
-            items = [i.strip() for part in raw.splitlines() for i in part.split(",")]
-            return [i for i in items if i]
+    @objc.python_method
+    def _tab_wishlist(self) -> NSView:
+        o = _v_stack()
+        o.setEdgeInsets_(NSEdgeInsets(UI_PAD, UI_PAD, UI_PAD, UI_PAD))
+        o.setSpacing_(10.0)
+        o.addView_inGravity_(
+            _label_small("One item per line, or comma-separated values."),
+            NSStackViewGravityTop,
+        )
+        self._wish: dict[str, NSTextView] = {}
+        heights = [("Reskins", 100), ("Gradients", 100), ("Roamings", 160), ("Special", 160)]
+        for name, h in heights:
+            o.addView_inGravity_(_label_small(name), NSStackViewGravityTop)
+            tv = NSTextView.alloc().init()
+            tv.setMinSize_((0, 0))
+            tv.setMaxSize_((1e7, 1e7))
+            tv.setVerticallyResizable_(True)
+            tv.setHorizontallyResizable_(False)
+            tv.setTextContainerInset_((5, 5))
+            tv.setFont_(self._mono_font())
+            sc = self._wrap_sc(tv, h)
+            self._wish[name] = tv
+            self._all_config_controls.append(tv)
+            o.addView_inGravity_(sc, NSStackViewGravityTop)
+        return self._v_scroll_page(o)
 
-        def read_coord(pair: tuple) -> list:
-            return [int(pair[0].get() or "0"), int(pair[1].get() or "0")]
+    @objc.python_method
+    def _mono_font(self) -> NSFont:
+        if hasattr(NSFont, "monospacedSystemFontOfSize_weight_"):
+            return NSFont.monospacedSystemFontOfSize_weight_(12, 0)
+        return NSFont.userFixedPitchFontOfSize_(12)
 
+    @objc.python_method
+    def _v_scroll_page(self, doc: NSView) -> NSView:
+        sc = NSScrollView.alloc().init()
+        doc.setTranslatesAutoresizingMaskIntoConstraints_(False)
+        sc.setDocumentView_(doc)
+        sc.setDrawsBackground_(True)
+        sc.setHasVerticalScroller_(True)
+        sc.setAutohidesScrollers_(True)
+        sc.setBorderType_(0)
+        sc.setTranslatesAutoresizingMaskIntoConstraints_(False)
+        if sc.contentView() is not None and doc.leadingAnchor():
+            cv = sc.contentView()
+            doc.leadingAnchor().constraintEqualToAnchor_(cv.leadingAnchor()).setActive_(
+                True
+            )
+            doc.trailingAnchor().constraintEqualToAnchor_(cv.trailingAnchor()).setActive_(
+                True
+            )
+            doc.topAnchor().constraintEqualToAnchor_(cv.topAnchor()).setActive_(True)
+            doc.widthAnchor().constraintEqualToAnchor_(cv.widthAnchor()).setActive_(
+                True
+            )
+        return sc
+
+    @objc.python_method
+    def _coord_row(self, parent: NSView, label: str, d: dict, k: str) -> None:
+        assert isinstance(parent, NSStackView)
+        row = _h_stack()
+        row.setSpacing_(8.0)
+        la = NSTextField.labelWithString_(label)
+        la.setFont_(NSFont.systemFontOfSize_(13.0))
+        if la.widthAnchor():
+            la.widthAnchor().constraintEqualToConstant_(LABEL_W + 4).setActive_(True)
+        xb = NSTextField.labelWithString_("X")
+        yb = NSTextField.labelWithString_("Y")
+        xb.setTextColor_(_MUTED)
+        yb.setTextColor_(_MUTED)
+        x = NSTextField.alloc().init()
+        y = NSTextField.alloc().init()
+        for f in (x, y):
+            f.setBezeled_(True)
+            f.setStringValue_("0")
+        if x.widthAnchor() and y.widthAnchor():
+            x.widthAnchor().constraintEqualToConstant_(76.0).setActive_(True)
+            y.widthAnchor().constraintEqualToConstant_(76.0).setActive_(True)
+        d[k] = (x, y)
+        self._all_config_controls.extend([x, y])
+        for w in (la, xb, x, yb, y):
+            row.addView_inGravity_(w, NSStackViewGravityTop)
+        parent.addView_inGravity_(row, NSStackViewGravityTop)
+
+    @objc.python_method
+    def _tab_positions(self) -> NSView:
+        col = _v_stack()
+        col.setEdgeInsets_(NSEdgeInsets(UI_PAD, UI_PAD, UI_PAD, UI_PAD))
+        col.setSpacing_(10.0)
+        col.addView_inGravity_(_section_title("Clicks and markers"), NSStackViewGravityTop)
+        pv = _v_stack()
+        self._pos: dict[str, tuple[NSTextField, NSTextField]] = {}
+        for key, label in POSITION_KEYS:
+            self._coord_row(pv, label, self._pos, key)
+        col.addView_inGravity_(pv, NSStackViewGravityTop)
+        col.addView_inGravity_(_section_title("Screen regions"), NSStackViewGravityTop)
+        self._regions: dict[str, dict[str, tuple[NSTextField, NSTextField]]] = {}
+        for t, rkey in [
+            ("Chat", "ChatWindow"),
+            ("Encounter name", "EncounterNameRegion"),
+            ("Sprite", "SpriteRegion"),
+        ]:
+            col.addView_inGravity_(_label_small(t), NSStackViewGravityTop)
+            s = _v_stack()
+            s.setSpacing_(4.0)
+            d: dict[str, tuple] = {}
+            self._coord_row(s, "Left corner", d, "LeftCorner")
+            self._coord_row(s, "Right corner", d, "RightCorner")
+            self._regions[rkey] = d
+            col.addView_inGravity_(s, NSStackViewGravityTop)
+        return self._wrap_sc(col, 500)
+
+    @objc.python_method
+    def _tab_logs(self) -> NSView:
+        v = _v_stack()
+        v.setEdgeInsets_(NSEdgeInsets(UI_PAD, UI_PAD, UI_PAD, UI_PAD))
+        v.setSpacing_(12.0)
+        v.addView_inGravity_(_section_title("Discord"), NSStackViewGravityTop)
+        dcol = _v_stack()
+        dcol.setSpacing_(8.0)
+        self._ptok = NSTextField.alloc().init()
+        self._stok = NSSecureTextField.alloc().init()
+        for t in (self._ptok, self._stok):
+            t.setStringValue_("")
+        self._stok.setBezeled_(True)
+        self._ptok.setBezeled_(True)
+        self._ptok.setHidden_(True)
+        self._all_config_controls.append(self._stok)
+        self._all_config_controls.append(self._ptok)
+        toks = _v_stack()
+        toks.setSpacing_(0.0)
+        toks.addView_inGravity_(self._stok, NSStackViewGravityTop)
+        toks.addView_inGravity_(self._ptok, NSStackViewGravityTop)
+        trow = _h_stack()
+        trow.addView_inGravity_(
+            NSTextField.labelWithString_("Bot token"), NSStackViewGravityTop
+        )
+        trow.addView_inGravity_(toks, NSStackViewGravityTop)
+        self._tokbtn = _push_button(self, b"toggleToken:", "Show")
+        trow.addView_inGravity_(self._tokbtn, NSStackViewGravityTop)
+        dcol.addView_inGravity_(trow, NSStackViewGravityTop)
+        self._server = NSTextField.alloc().init()
+        self._server.setStringValue_("0")
+        self._all_config_controls.append(self._server)
+        dcol.addView_inGravity_(
+            self._form_pair("Server ID (numeric)", self._server), NSStackViewGravityTop
+        )
+        v.addView_inGravity_(dcol, NSStackViewGravityTop)
+        v.addView_inGravity_(_section_title("Output"), NSStackViewGravityTop)
+        hrow = _h_stack()
+        gfill = NSView.alloc().init()
+        if hasattr(gfill, "setContentHuggingPriority_forOrientation_"):
+            gfill.setContentHuggingPriority_forOrientation_(
+                1, NSUserInterfaceLayoutOrientationHorizontal
+            )
+        hrow.addView_inGravity_(gfill, NSStackViewGravityTop)
+        cpy = _push_button(self, b"copyLogs:", "Copy")
+        clr = _push_button(self, b"clearLogs:", "Clear")
+        hrow.addView_inGravity_(cpy, NSStackViewGravityTop)
+        hrow.addView_inGravity_(clr, NSStackViewGravityTop)
+        v.addView_inGravity_(hrow, NSStackViewGravityTop)
+        self._log = _AdaptiveLogTextView.alloc().init()
+        self._log.setEditable_(False)
+        self._log.setSelectable_(True)
+        self._log.setFont_(self._mono_font())
+        self._log.setTextContainerInset_((6, 6))
+        self._log._pm_apply_appearance()
+        lg = self._wrap_sc(self._log, 300)
+        v.addView_inGravity_(lg, NSStackViewGravityTop)
+        return v
+
+    def selectSection_(self, sender) -> None:
+        for b in self._sidebar_radios:
+            b.setState_(int(NSOnState) if b is sender else int(NSOffState))
+        tag = 0
+        if sender is not None and hasattr(sender, "tag"):
+            tag = int(sender.tag() if sender.tag() is not None else 0)
+        self._tab.selectTabViewItemAtIndex_(tag)
+
+    def openPreferences_(self, sender) -> None:
+        for b in self._sidebar_radios:
+            b.setState_(int(NSOnState) if b.tag() == 0 else int(NSOffState))
+        self._tab.selectTabViewItemAtIndex_(0)
+        self._window.makeKeyAndOrderFront_(None)
+
+    def showAbout_(self, sender) -> None:
+        a = NSAlert.alloc().init()
+        a.setMessageText_("PokeMacro")
+        a.setInformativeText_("Pokémon automation helper for macOS.")
+        a.runModal()
+
+    @objc.python_method
+    def _read_wish(self, tv: NSTextView) -> list[str]:
+        s = (tv.textStorage().string() or "") if tv.textStorage() is not None else ""
+        raw = str(s).strip()
+        out: list[str] = []
+        for line in raw.splitlines():
+            for part in line.split(","):
+                p = part.strip()
+                if p:
+                    out.append(p)
+        return out
+
+    @objc.python_method
+    def _xy_from_entries(self, p: tuple[NSTextField, NSTextField]) -> list[int]:
+        return [_int_field(p[0]), _int_field(p[1])]
+
+    @objc.python_method
+    def _gather(self) -> dict:
         return {
-            "HuntingMode": self._gen_hunting_mode.get(),
-            "Username": self._gen_username_var.get(),
-            "Wishlist": {name: read_text(txt) for name, txt in self._wish_texts.items()},
-            "Positions": {key: read_coord(pair) for key, pair in self._pos_entries.items()},
-            **{region_key: {corner: read_coord(pair) for corner, pair in entries.items()}
-               for region_key, entries in self._region_entries.items()},
-            **{key: var.get() for key, var in self._gen_bool_vars.items()},
-            "Mode": self._gen_mode.get(),
-            "DiscordBotToken": self._disc_token_entry.get(),
-            "ServerID": int(self._disc_server_id_entry.get() or "0"),
+            "HuntingMode": str(self._hunt.titleOfSelectedItem() or "egg"),
+            "Username": str(self._user.stringValue() or ""),
+            "Mode": str(self._fast.titleOfSelectedItem() or "Default"),
+            "Wishlist": {n: self._read_wish(t) for n, t in self._wish.items()},
+            "Positions": {k: self._xy_from_entries(t) for k, t in self._pos.items()},
+            "ChatWindow": {c: self._xy_from_entries(p) for c, p in self._regions["ChatWindow"].items()},
+            "EncounterNameRegion": {
+                c: self._xy_from_entries(p) for c, p in self._regions["EncounterNameRegion"].items()
+            },
+            "SpriteRegion": {c: self._xy_from_entries(p) for c, p in self._regions["SpriteRegion"].items()},
+            "IsReskin": self._bools["IsReskin"].state() == int(NSOnState),
+            "IsShiny": self._bools["IsShiny"].state() == int(NSOnState),
+            "IsGradient": self._bools["IsGradient"].state() == int(NSOnState),
+            "IsAny": self._bools["IsAny"].state() == int(NSOnState),
+            "IsGood": self._bools["IsGood"].state() == int(NSOnState),
+            "DiscordBotToken": (
+                (self._ptok.stringValue() or "")
+                if self._token_shown
+                else (self._stok.stringValue() or "")
+            ),
+            "ServerID": int(self._server.stringValue() or "0"),
         }
 
-    def _save_config(self) -> None:
-        data = self._collect_config()
-        self._config_manager.save(data)
-        prev = self._status_label.cget("text")
-        self._status_label.config(text="Saved", foreground=_RUN_DOT)
-        self.after(2000, lambda: self._status_label.config(
-            text="Running..." if self._is_running else (prev if prev not in ("Saved", "Config saved.") else "Idle"),
-            foreground=_RUN_DOT if self._is_running else _MUTED,
-        ))
+    @objc.python_method
+    def _load_all_fields(self) -> None:
+        c = self._config
+        self._hunt.selectItemWithTitle_(c.get("HuntingMode", "egg") or "egg")
+        self._user.setStringValue_(c.get("Username", "") or "")
+        self._fast.selectItemWithTitle_(c.get("Mode", "Default") or "Default")
+        for k, b in self._bools.items():
+            b.setState_(int(NSOnState) if c.get(k, False) else int(NSOffState))
+        w = c.get("Wishlist", {}) or {}
+        for n, tv in self._wish.items():
+            items = w.get(n, []) or []
+            s = "\n".join(str(x) for x in items)
+            if tv.textStorage() is not None:
+                tv.textStorage().setAttributedString_(
+                    NSMutableAttributedString.alloc().initWithString_(s)
+                )
+        p = c.get("Positions", {}) or {}
+        for k, (xf, yf) in self._pos.items():
+            t = p.get(k, [0, 0])
+            xf.setStringValue_(str(int(t[0] if len(t) > 0 else 0)))
+            yf.setStringValue_(str(int(t[1] if len(t) > 1 else 0)))
+        for rk, block in self._regions.items():
+            region = c.get(rk, {}) or {}
+            for corner, (xf, yf) in block.items():
+                t = region.get(corner, [0, 0])
+                xf.setStringValue_(str(int(t[0] if len(t) > 0 else 0)))
+                yf.setStringValue_(str(int(t[1] if len(t) > 1 else 0)))
+        tok = c.get("DiscordBotToken", "") or ""
+        self._stok.setStringValue_(tok)
+        self._ptok.setStringValue_(tok)
+        self._server.setStringValue_(str(int(c.get("ServerID", 0) or 0)))
+        if hasattr(self, "_log") and self._log is not None:
+            self._log._pm_apply_appearance()
 
-    # ── Start / Stop ──────────────────────────────────────────────────────────
+    def saveConfig_(self, sender) -> None:
+        self._config = self._gather()
+        self._config_manager.save(self._config)
+        self._status.setStringValue_("Saved")
+        self._status.setTextColor_(_RUN)
+        if self._status_reset_timer is not None:
+            self._status_reset_timer.invalidate()
+        me = self
 
-    def _toggle_run(self) -> None:
+        def one_shot(t: NSTimer) -> None:
+            if me._is_running:
+                me._status.setStringValue_("Running")
+                me._status.setTextColor_(_RUN)
+            else:
+                me._status.setStringValue_("Idle")
+                me._status.setTextColor_(_MUTED)
+
+        self._status_reset_timer = NSTimer.scheduledTimerWithTimeInterval_repeats_block_(
+            2.0, False, one_shot
+        )
+
+    def toggleRun_(self, sender) -> None:
         if not self._is_running:
             self._start_run()
         else:
             self._stop_run()
 
-    def _set_dot(self, color: str) -> None:
-        self._status_dot_canvas.itemconfig(self._status_dot, fill=color)
-
+    @objc.python_method
     def _start_run(self) -> None:
-        self._save_config()
+        self._config = self._gather()
+        self._config_manager.save(self._config)
         self._is_running = True
-        self._start_stop_btn.config(text="Stop")
-        self._status_label.config(text="Running", foreground=_RUN_DOT)
-        self._set_dot(_RUN_DOT)
-        self._set_fields_enabled(False)
-        self._subprocess_manager.start(
-            log_queue=self._log_queue,
-            on_exit=lambda code: self.after(0, lambda: self._on_process_exit(code)),
-        )
+        self._go.setTitle_("Stop")
+        self._status.setStringValue_("Running")
+        self._status.setTextColor_(_RUN)
+        self._status_dot.setFillColor_(_RUN)
+        self._set_en(False)
+        self._subprocess_manager.start(self._log_queue, self._on_exit)
 
+    @objc.python_method
+    def _on_exit(self, code: int) -> None:
+        self._is_running = False
+        self._set_en(True)
+        self._go.setTitle_("Start")
+        self._go.setEnabled_(True)
+        self._status_dot.setFillColor_(_IDLE)
+        self._status.setStringValue_(
+            "Idle" if int(code) == 0 else f"Stopped (exit {int(code)})"
+        )
+        self._status.setTextColor_(_MUTED)
+
+    @objc.python_method
     def _stop_run(self) -> None:
-        self._start_stop_btn.config(text="Stopping…", state="disabled")
-        self._status_label.config(text="Stopping…", foreground=_STOP_DOT)
-        self._set_dot(_STOP_DOT)
+        self._go.setTitle_("Stopping…")
+        self._go.setEnabled_(False)
+        self._status.setStringValue_("Stopping…")
+        self._status.setTextColor_(_STOP)
+        self._status_dot.setFillColor_(_STOP)
         self._subprocess_manager.stop()
 
-    def _on_process_exit(self, returncode: int) -> None:
-        self._is_running = False
-        self._set_fields_enabled(True)
-        self._start_stop_btn.config(text="Start", state="normal")
-        self._set_dot(_IDLE_DOT)
-        label = "Idle" if returncode == 0 else f"Stopped (exit {returncode})"
-        self._status_label.config(text=label, foreground=_MUTED)
-
-    def _set_fields_enabled(self, enabled: bool) -> None:
-        for widget in self._all_config_widgets:
-            if isinstance(widget, ttk.Combobox):
-                widget.config(state="readonly" if enabled else "disabled")
+    @objc.python_method
+    def _set_en(self, on: bool) -> None:
+        for c in self._all_config_controls:
+            if isinstance(c, NSTextView):
+                c.setEditable_(on)
+            elif isinstance(c, NSPopUpButton):
+                c.setEnabled_(on)
             else:
-                widget.config(state="normal" if enabled else "disabled")
+                c.setEnabled_(on)
+        for b in self._bools.values():
+            b.setEnabled_(on)
 
-    # ── Log streaming ─────────────────────────────────────────────────────────
-
-    def _poll_log_queue(self) -> None:
-        try:
+    @objc.python_method
+    def _arm_log_polling(self) -> None:
+        def tick(_t: NSTimer) -> None:
             while True:
-                line = self._log_queue.get_nowait()
-                self._append_log(line)
-        except queue.Empty:
-            pass
-        self.after(100, self._poll_log_queue)
+                try:
+                    line = self._log_queue.get_nowait()
+                except queue.Empty:
+                    break
+                self._line(line)
 
-    def _append_log(self, line: str) -> None:
-        at_bottom = self._log_text.yview()[1] >= 0.99
-        self._log_text.config(state="normal")
-        self._log_text.insert("end", line + "\n")
-        self._log_text.config(state="disabled")
+        self._log_timer = NSTimer.scheduledTimerWithTimeInterval_repeats_block_(
+            0.1, True, tick
+        )
+
+    @objc.python_method
+    def _line(self, s: str) -> None:
+        ts = self._log.textStorage()
+        if ts is None:
+            return
+        at_bottom = self._near_bottom()
+        L = len(ts.string() or "")
+        ns = str(s) + "\n"
+        ts.replaceCharactersInRange_withString_((L, 0), ns)
         if at_bottom:
-            self._log_text.see("end")
+            self._log.scrollToEndOfDocument_(None)
 
-    def _clear_logs(self) -> None:
-        self._log_text.config(state="normal")
-        self._log_text.delete("1.0", "end")
-        self._log_text.config(state="disabled")
+    @objc.python_method
+    def _near_bottom(self) -> bool:
+        v = self._log.enclosingScrollView()
+        if v is None:
+            return True
+        doc = v.documentView()
+        if doc is None:
+            return True
+        vr = v.contentView().bounds()
+        h = doc.bounds().size.height
+        if h <= vr.size.height + 2.0:
+            return True
+        y = v.contentView().bounds().origin.y
+        return y + vr.size.height >= h - 4.0
 
-    def _copy_logs(self) -> None:
-        content = self._log_text.get("1.0", "end")
-        self.clipboard_clear()
-        self.clipboard_append(content)
+    def clearLogs_(self, sender) -> None:
+        ts = self._log.textStorage()
+        if ts is not None and ts.length():
+            ts.deleteCharactersInRange_((0, int(ts.length())))
 
-    # ── Window close ──────────────────────────────────────────────────────────
+    def copyLogs_(self, sender) -> None:
+        ts = self._log.textStorage()
+        t = (ts.string() or "") if ts else ""
+        p = NSPasteboard.generalPasteboard()
+        p.clearContents()
+        p.setString_forType_(t, NSStringPboardType)
 
-    def _on_close(self) -> None:
-        if self._is_running:
-            if messagebox.askyesno("Quit", "Macro is running. Stop it and quit?"):
-                self._subprocess_manager.stop()
-            else:
-                return
-        self.destroy()
+    def toggleToken_(self, sender) -> None:
+        self._token_shown = not self._token_shown
+        if self._token_shown:
+            s = str(self._stok.stringValue() or "")
+            self._ptok.setStringValue_(s)
+            self._stok.setHidden_(True)
+            self._ptok.setHidden_(False)
+            self._tokbtn.setTitle_("Hide")
+        else:
+            s = str(self._ptok.stringValue() or "")
+            self._stok.setStringValue_(s)
+            self._ptok.setHidden_(True)
+            self._stok.setHidden_(False)
+            self._tokbtn.setTitle_("Show")
+
+    @objc.python_method
+    def _should_stop(self) -> bool:
+        a = NSAlert.alloc().init()
+        a.setMessageText_("Quit")
+        a.setInformativeText_("Macro is running. Stop it and quit?")
+        a.addButtonWithTitle_("Quit")
+        a.addButtonWithTitle_("Cancel")
+        return int(a.runModal()) == int(NSAlertFirstButtonReturn)
+
+    @objc.python_method
+    def _menu(self) -> None:
+        app = NSApplication.sharedApplication()
+        bar = NSMenu.alloc().init()
+        app_sub = NSMenuItem.alloc().init()
+        sm = NSMenu.alloc().init()
+        sm.addItem_(_ac_about(self))
+        sm.addItem_(NSMenuItem.separatorItem())
+        sm.addItem_(_ac_prefs(self))
+        sm.addItem_(NSMenuItem.separatorItem())
+        sm.addItem_(_ac_hide())
+        sm.addItem_(NSMenuItem.separatorItem())
+        q = (
+            NSMenuItem.alloc()
+            .initWithTitle_action_keyEquivalent_("Quit PokeMacro", b"terminate:", "q")
+        )
+        q.setKeyEquivalentModifierMask_(NSCommandKeyMask)
+        sm.addItem_(q)
+        app_sub.setSubmenu_(sm)
+        app_sub.setTitle_("PokeMacro")
+        bar.addItem_(app_sub)
+        app.setMainMenu_(bar)
+
+    @objc.python_method
+    def run(self) -> None:
+        app = NSApplication.sharedApplication()
+        app.setDelegate_(self)
+        self._menu()
+        app.setActivationPolicy_(NSApplicationActivationPolicyRegular)
+        self._window.setIsVisible_(True)
+        app.activateIgnoringOtherApps_(True)
+        app.run()
+
+    def applicationShouldTerminate_(self, app) -> int:
+        if not self._is_running:
+            return int(NSTerminateNow)
+        if self._should_stop():
+            self._subprocess_manager.stop()
+            return int(NSTerminateNow)
+        return int(NSTerminateCancel)
+
+    def windowShouldClose_(self, sender) -> bool:
+        if not self._is_running:
+            return True
+        if self._should_stop():
+            self._subprocess_manager.stop()
+            return True
+        return False
 
 
 def main() -> None:
-    app = PokeMacroApp()
-    app.mainloop()
+    c = PokeMacroController.alloc().init()
+    if c is None:
+        return
+    c.run()
 
 
 if __name__ == "__main__":

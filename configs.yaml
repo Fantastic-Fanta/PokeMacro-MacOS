@@ -1,5 +1,6 @@
 HuntingMode: egg
 Username: Manta
+Mode: Default
 Wishlist:
   Reskins:
   - Phantom
@@ -109,6 +110,5 @@ IsShiny: false
 IsGradient: false
 IsAny: false
 IsGood: true
-Mode: Default
 DiscordBotToken: ''
 ServerID: 0
