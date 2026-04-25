@@ -4,6 +4,7 @@ import traceback
 
 import pyautogui
 
+from .git_update import start_background_update
 from .hunter_config import DEFAULT_HUNTER_CONFIG
 from .macro_config import DEFAULT_MACRO_CONFIG, HUNTING_MODE, MODE
 from .macro_runner import MacroRunner
@@ -19,6 +20,7 @@ def focus_roblox() -> None:
 
 
 def main() -> None:
+    start_background_update()
     try:
         pyautogui.FAILSAFE = True
         if HUNTING_MODE == "roam":

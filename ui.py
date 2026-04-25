@@ -10,6 +10,8 @@ import threading
 from pathlib import Path
 from typing import Callable
 
+from src.git_update import start_background_update
+
 import objc
 import yaml
 from AppKit import (
@@ -1044,6 +1046,7 @@ class PokeMacroController(NSObject):
 
     @objc.python_method
     def run(self) -> None:
+        start_background_update(log_queue=self._log_queue)
         app = NSApplication.sharedApplication()
         app.setDelegate_(self)
         self._menu()
