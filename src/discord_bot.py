@@ -1,0 +1,274 @@
+import asyncio
+import threading
+import time
+import uuid
+from enum import Enum
+from pathlib import Path
+from typing import Optional
+
+import discord
+from discord import app_commands
+
+
+class ConfirmationResult(Enum):
+    KEEP = "keep"
+    ROLL = "roll"
+    TIMEOUT = "timeout"
+
+
+class DiscordBot:
+    def __init__(self, token: str, guild_id: int):
+        intents = discord.Intents.default()
+        intents.message_content = True
+        self.client = discord.Client(intents=intents)
+        self.tree = app_commands.CommandTree(self.client)
+        self.token = token
+        self.guild_id = guild_id
+        self.user_id: Optional[int] = None
+        self.confirmation_channel: Optional[discord.TextChannel] = None
+        self.log_channel: Optional[discord.TextChannel] = None
+        self._loop: Optional[asyncio.AbstractEventLoop] = None
+        self._thread: Optional[threading.Thread] = None
+        self._pending_confirmations: dict[str, asyncio.Future] = {}
+        self._timeout_tasks: dict[str, asyncio.Task] = {}
+        self.client.event(self.on_ready)
+        self.client.event(self.on_interaction)
+
+    async def on_ready(self):
+        print(f"[Discord Bot] Logged in as {self.client.user}")
+        guild = self.client.get_guild(self.guild_id)
+        if not guild:
+            print(f"[Discord Bot] Warning: Guild {self.guild_id} not found")
+            return
+        try:
+            owner = guild.owner or await guild.fetch_member(guild.owner_id)
+            self.user_id = owner.id if owner else None
+            if self.user_id:
+                print(f"[Discord Bot] Using guild owner {self.user_id} for pings")
+        except Exception as e:
+            print(f"[Discord Bot] Failed to resolve guild owner: {e}")
+        category_name = "MantiNotify"
+        category = discord.utils.get(guild.categories, name=category_name)
+        if category is None:
+            try:
+                category = await guild.create_category(category_name, reason="Auto-created for Pokemon Macro")
+                print(f"[Discord Bot] Created category: {category_name}")
+            except Exception as e:
+                print(f"[Discord Bot] Failed to create category {category_name}: {e}")
+
+        async def get_or_create_channel(channel_name: str) -> Optional[discord.TextChannel]:
+            channel = discord.utils.get(guild.text_channels, name=channel_name)
+            if channel and channel.category_id == (category.id if category else None):
+                return channel
+            try:
+                channel = await guild.create_text_channel(
+                    channel_name,
+                    category=category,
+                    reason="Auto-created for Pokemon Macro",
+                )
+                print(f"[Discord Bot] Created channel: {channel_name}")
+                return channel
+            except Exception as e:
+                print(f"[Discord Bot] Failed to create channel {channel_name}: {e}")
+                return None
+
+        self.confirmation_channel = await get_or_create_channel("egg-hunting")
+        self.log_channel = await get_or_create_channel("reset-history")
+        if self.confirmation_channel:
+            print(f"[Discord Bot] Confirmation channel: {self.confirmation_channel.name}")
+        if self.log_channel:
+            print(f"[Discord Bot] Log channel: {self.log_channel.name}")
+
+    async def on_interaction(self, interaction: discord.Interaction):
+        if not interaction.data or "custom_id" not in interaction.data:
+            return
+        custom_id = interaction.data["custom_id"]
+        if custom_id.startswith("confirm_"):
+            parts = custom_id.split("_", 2)
+            if len(parts) >= 3:
+                confirmation_id = parts[1]
+                action = parts[2]
+            else:
+                return
+            if confirmation_id in self._pending_confirmations:
+                future = self._pending_confirmations[confirmation_id]
+                if confirmation_id in self._timeout_tasks:
+                    self._timeout_tasks[confirmation_id].cancel()
+                    del self._timeout_tasks[confirmation_id]
+                if action == "keep":
+                    result = ConfirmationResult.KEEP
+                    mention = f"<@{self.user_id}>" if self.user_id else "@everyone"
+                    await interaction.response.edit_message(
+                        content=f"{mention} Egg successfully saved.",
+                        view=None,
+                    )
+                else:
+                    result = ConfirmationResult.ROLL
+                    mention = f"<@{self.user_id}>" if self.user_id else "@everyone"
+                    await interaction.response.edit_message(
+                        content=f"{mention} Egg rolled off, continuing hunt.",
+                        view=None,
+                    )
+                if not future.done():
+                    future.set_result(result)
+                del self._pending_confirmations[confirmation_id]
+            else:
+                await interaction.response.send_message(
+                    "This confirmation has expired or already been processed.",
+                    ephemeral=True,
+                )
+
+    async def send_confirmation(
+        self,
+        message: str,
+        timeout_seconds: float = 600.0,
+        file_path: Optional[str] = None,
+    ) -> ConfirmationResult:
+        if not self.confirmation_channel:
+            print("[Discord Bot] Confirmation channel not available, defaulting to KEEP")
+            return ConfirmationResult.KEEP
+        confirmation_id = str(uuid.uuid4())
+        keep_button = discord.ui.Button(
+            label="Keep",
+            style=discord.ButtonStyle.grey,
+            custom_id=f"confirm_{confirmation_id}_keep",
+        )
+        roll_button = discord.ui.Button(
+            label="Roll",
+            style=discord.ButtonStyle.grey,
+            custom_id=f"confirm_{confirmation_id}_roll",
+        )
+        view = discord.ui.View()
+        view.add_item(keep_button)
+        view.add_item(roll_button)
+        future = asyncio.Future()
+        self._pending_confirmations[confirmation_id] = future
+        embed = discord.Embed(description=message, color=discord.Color.from_rgb(0, 170, 255))
+        file = None
+        if file_path:
+            path = Path(file_path)
+            if path.exists():
+                file = discord.File(str(path), filename=path.name)
+                embed.set_image(url=f"attachment://{path.name}")
+        if self.user_id:
+            mention = f"<@{self.user_id}>"
+        else:
+            mention = "@everyone"
+        content = f"{mention} Awaiting confirmation..."
+        if file is not None:
+            sent_message = await self.confirmation_channel.send(content=content, embed=embed, view=view, file=file)
+        else:
+            sent_message = await self.confirmation_channel.send(content=content, embed=embed, view=view)
+
+        async def timeout_handler():
+            await asyncio.sleep(timeout_seconds)
+            if confirmation_id in self._pending_confirmations:
+                future_inner = self._pending_confirmations[confirmation_id]
+                if not future_inner.done():
+                    try:
+                        mention_t = f"<@{self.user_id}>" if self.user_id else "@everyone"
+                        await sent_message.edit(
+                            content=f"{mention_t} Egg successfully saved.",
+                            view=None,
+                        )
+                    except Exception:
+                        pass
+                    future_inner.set_result(ConfirmationResult.TIMEOUT)
+                del self._pending_confirmations[confirmation_id]
+                if confirmation_id in self._timeout_tasks:
+                    del self._timeout_tasks[confirmation_id]
+
+        timeout_task = asyncio.create_task(timeout_handler())
+        self._timeout_tasks[confirmation_id] = timeout_task
+        try:
+            return await future
+        except Exception as e:
+            print(f"[Discord Bot] Error waiting for confirmation: {e}")
+            return ConfirmationResult.TIMEOUT
+
+    async def send_simple_message(self, content: str) -> None:
+        if not self.log_channel:
+            print("[Discord Bot] Log channel not available, cannot send message")
+            return
+        await self.log_channel.send(content)
+
+    async def send_log_embed(self, description: str, color: Optional[discord.Color] = None) -> None:
+        if not self.log_channel:
+            print("[Discord Bot] Log channel not available, cannot send log embed")
+            return
+        embed = discord.Embed(
+            description=description,
+            color=color or discord.Color.from_rgb(0, 170, 255),
+        )
+        await self.log_channel.send(embed=embed)
+
+    def start(self):
+        def run_bot():
+            self._loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(self._loop)
+            self._loop.run_until_complete(self.client.start(self.token))
+
+        self._thread = threading.Thread(target=run_bot, daemon=True)
+        self._thread.start()
+        max_wait = 10
+        waited = 0
+        while (not self.confirmation_channel or not self.log_channel) and waited < max_wait:
+            time.sleep(0.5)
+            waited += 0.5
+        if not self.confirmation_channel or not self.log_channel:
+            print("[Discord Bot] Warning: Bot did not fully initialize channels within timeout")
+
+    def stop(self):
+        if self._loop and self._loop.is_running():
+            asyncio.run_coroutine_threadsafe(self.client.close(), self._loop)
+        if self._thread:
+            self._thread.join(timeout=5)
+
+    def send_confirmation_sync(
+        self,
+        message: str,
+        timeout_seconds: float = 600.0,
+        file_path: Optional[str] = None,
+    ) -> ConfirmationResult:
+        if not self._loop or not self._loop.is_running():
+            print("[Discord Bot] Bot not running, defaulting to KEEP")
+            return ConfirmationResult.KEEP
+        future = asyncio.run_coroutine_threadsafe(
+            self.send_confirmation(message, timeout_seconds, file_path=file_path),
+            self._loop,
+        )
+        try:
+            return future.result(timeout=timeout_seconds + 5)
+        except Exception as e:
+            print(f"[Discord Bot] Error in sync confirmation: {e}")
+            return ConfirmationResult.TIMEOUT
+
+    def send_simple_message_sync(self, content: str) -> None:
+        if not self._loop or not self._loop.is_running():
+            print("[Discord Bot] Bot not running, cannot send message")
+            return
+        future = asyncio.run_coroutine_threadsafe(
+            self.send_simple_message(content),
+            self._loop,
+        )
+        try:
+            future.result(timeout=5)
+        except Exception as e:
+            print(f"[Discord Bot] Error in sync simple message: {e}")
+
+    def send_log_embed_sync(
+        self,
+        description: str,
+        color: Optional[discord.Color] = None,
+    ) -> None:
+        if not self._loop or not self._loop.is_running():
+            print("[Discord Bot] Bot not running, cannot send log embed")
+            return
+        future = asyncio.run_coroutine_threadsafe(
+            self.send_log_embed(description, color),
+            self._loop,
+        )
+        try:
+            future.result(timeout=5)
+        except Exception as e:
+            print(f"[Discord Bot] Error in sync log embed: {e}")

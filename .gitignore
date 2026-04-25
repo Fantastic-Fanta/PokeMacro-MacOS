@@ -1,0 +1,6 @@
+history.log
+screenshot.png
+ENV/
+.DS_Store
+__pycache__/
+.env

@@ -1,0 +1,97 @@
+# egg = egg rolling / macro reset. roam = roaming hunter, spams A and D, make sure to be in surf in a wide water area
+HuntingMode: egg
+
+Username: Manta
+
+Wishlist:
+  Reskins:
+  - Phantom
+  - Glitch
+  - Shadow
+  Gradients:
+  - Nyx
+  - Nereus
+  - Helios
+  - Chronos
+  Roamings:
+  - Mew
+  - Raikou
+  - Entei
+  - Suicine
+  - Celebi
+  - Latios
+  - Latias
+  - Arceus
+  - Cobalion
+  - Terrakion
+  - Virizion
+  - Hoopa
+  - Regigigas
+  - Tornadus
+  - Thundurus
+  - Kubfu
+  - Marshadow
+  Special:
+  - Shiny
+  - Amor
+  - Whiteout
+  - Phantom
+  - Glitch
+  - Shadow
+  - Lunar
+  - Nyx
+  - Nereus
+  - Gaia
+  - Helios
+  - Frostbite
+  - Chronos
+  - Valentine
+  - Coldheart
+  - Winter
+  - Effervescent
+  - Volumptous
+  - Liebe
+  - Aurora
+
+Positions:
+  # Egg / reset
+  EggManPosition: [969, 559]
+  EventButton: [1418, 965]
+  DialogueYES: [1170, 405]
+  QuickRejoinSprite: [1475, 850]
+  QuickRejoinButton: [1000, 580]
+  MenuButton: [43, 451]
+  SaveButton: [70, 735]
+  LoadingScreenYellow: [766, 323]
+  SaveFileCard: [753, 503]
+  # Roam
+  RunButton: [974, 910]
+  Pokeball: [71, 411]
+  # PokeballTolerance: 30
+  # PokeballColor: [255, 255, 255]
+
+ChatWindow:
+  LeftCorner: [13, 136]
+  RightCorner: [440, 354]
+
+# Roam mode only: encounter name and sprite for Discord
+EncounterNameRegion:
+  LeftCorner: [1079, 212]
+  RightCorner: [1222, 245]
+SpriteRegion:
+  LeftCorner: [810, 400]
+  RightCorner: [1240, 700]
+
+IsReskin: false
+IsShiny: false
+IsGradient: false
+IsAny: true
+IsGood: false
+# Default = full click sequence, Roblox URL to rejoin. Fast = skip first 3 clicks, type //qre + Enter to rejoin.
+Mode: Default
+
+# Roam: webhook with sprite screenshot. Egg: can use same for username logs, or use Discord bot token fields.
+# DiscordWebhook: 
+# DiscordBotToken: 
+# DiscordChannelId: 0
+# ServerID: 0
