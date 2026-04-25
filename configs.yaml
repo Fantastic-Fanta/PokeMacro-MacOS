@@ -67,8 +67,6 @@ Positions:
   # Roam
   RunButton: [974, 910]
   Pokeball: [71, 411]
-  # PokeballTolerance: 30
-  # PokeballColor: [255, 255, 255]
 
 ChatWindow:
   LeftCorner: [13, 136]
@@ -90,8 +88,6 @@ IsGood: false
 # Default = full click sequence, Roblox URL to rejoin. Fast = skip first 3 clicks, type //qre + Enter to rejoin.
 Mode: Default
 
-# Roam: webhook with sprite screenshot. Egg: can use same for username logs, or use Discord bot token fields.
-# DiscordWebhook: 
-# DiscordBotToken: 
-# DiscordChannelId: 0
+# Discord bot used for both egg hunting (confirmations) and roam hunting (sprite alerts).
+# DiscordBotToken:
 # ServerID: 0

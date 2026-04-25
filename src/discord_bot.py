@@ -27,6 +27,7 @@ class DiscordBot:
         self.user_id: Optional[int] = None
         self.confirmation_channel: Optional[discord.TextChannel] = None
         self.log_channel: Optional[discord.TextChannel] = None
+        self.roam_channel: Optional[discord.TextChannel] = None
         self._loop: Optional[asyncio.AbstractEventLoop] = None
         self._thread: Optional[threading.Thread] = None
         self._pending_confirmations: dict[str, asyncio.Future] = {}
@@ -74,10 +75,13 @@ class DiscordBot:
 
         self.confirmation_channel = await get_or_create_channel("egg-hunting")
         self.log_channel = await get_or_create_channel("reset-history")
+        self.roam_channel = await get_or_create_channel("roam-hunting")
         if self.confirmation_channel:
             print(f"[Discord Bot] Confirmation channel: {self.confirmation_channel.name}")
         if self.log_channel:
             print(f"[Discord Bot] Log channel: {self.log_channel.name}")
+        if self.roam_channel:
+            print(f"[Discord Bot] Roam channel: {self.roam_channel.name}")
 
     async def on_interaction(self, interaction: discord.Interaction):
         if not interaction.data or "custom_id" not in interaction.data:
@@ -196,6 +200,33 @@ class DiscordBot:
         )
         await self.log_channel.send(embed=embed)
 
+    async def send_notification(self, message: str, file_path: Optional[str] = None) -> None:
+        if not self.roam_channel:
+            print("[Discord Bot] Roam channel not available, cannot send notification")
+            return
+        file = None
+        if file_path:
+            path = Path(file_path)
+            if path.exists():
+                file = discord.File(str(path), filename=path.name)
+        if file is not None:
+            await self.roam_channel.send(content=message, file=file)
+        else:
+            await self.roam_channel.send(content=message)
+
+    def send_notification_sync(self, message: str, file_path: Optional[str] = None) -> None:
+        if not self._loop or not self._loop.is_running():
+            print("[Discord Bot] Bot not running, cannot send notification")
+            return
+        future = asyncio.run_coroutine_threadsafe(
+            self.send_notification(message, file_path=file_path),
+            self._loop,
+        )
+        try:
+            future.result(timeout=15)
+        except Exception as e:
+            print(f"[Discord Bot] Error in sync notification: {e}")
+
     def start(self):
         def run_bot():
             self._loop = asyncio.new_event_loop()
@@ -206,10 +237,10 @@ class DiscordBot:
         self._thread.start()
         max_wait = 10
         waited = 0
-        while (not self.confirmation_channel or not self.log_channel) and waited < max_wait:
+        while (not self.confirmation_channel or not self.log_channel or not self.roam_channel) and waited < max_wait:
             time.sleep(0.5)
             waited += 0.5
-        if not self.confirmation_channel or not self.log_channel:
+        if not self.confirmation_channel or not self.log_channel or not self.roam_channel:
             print("[Discord Bot] Warning: Bot did not fully initialize channels within timeout")
 
     def stop(self):

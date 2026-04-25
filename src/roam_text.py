@@ -1,15 +1,6 @@
 import pyautogui
 
 
-def capture_full_screen_to_file(output_path: str) -> bool:
-    try:
-        screenshot = pyautogui.screenshot()
-        screenshot.save(output_path)
-        return True
-    except Exception:
-        return False
-
-
 def capture_sprite_region_to_file(left: int, top: int, width: int, height: int, output_path: str) -> None:
     try:
         screenshot = pyautogui.screenshot(region=(left, top, width, height))

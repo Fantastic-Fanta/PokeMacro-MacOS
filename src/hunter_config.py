@@ -57,15 +57,9 @@ SPRITE_REGION = _region_from_corners(
     (0, 0, 0, 0),
 )
 
-POKEBALL_TOLERANCE = int(_positions.get("PokeballTolerance", 30))
-DISCORD_WEBHOOK = _config.get("DiscordWebhook", "")
+DISCORD_BOT_TOKEN = _config.get("DiscordBotToken", "")
+DISCORD_GUILD_ID = int(_config.get("ServerID", 0))
 USERNAME = _config.get("Username", "")
-
-try:
-    _pc = _positions.get("PokeballColor")
-    POKEBALL_COLOR = (int(_pc[0]), int(_pc[1]), int(_pc[2]))
-except Exception:
-    POKEBALL_COLOR = (255, 255, 255)
 
 CONFIG_FILE_PATH = get_config_path()
 
@@ -101,7 +95,8 @@ class HunterConfig:
     special_click_interval_seconds: float = 10.0
 
     username: str = ""
-    discord_webhook: str = ""
+    discord_bot_token: str = ""
+    discord_guild_id: int = 0
     wishlist_items: Optional[List[str]] = field(default=None)
     special_variants: Optional[List[str]] = field(default=None)
 
@@ -110,8 +105,10 @@ class HunterConfig:
             object.__setattr__(self, "wishlist_items", WISHLIST_ITEMS)
         if self.special_variants is None:
             object.__setattr__(self, "special_variants", [v.lower() for v in SPECIAL_VARIANTS])
-        if self.discord_webhook == "":
-            object.__setattr__(self, "discord_webhook", DISCORD_WEBHOOK or "")
+        if self.discord_bot_token == "":
+            object.__setattr__(self, "discord_bot_token", DISCORD_BOT_TOKEN)
+        if self.discord_guild_id == 0:
+            object.__setattr__(self, "discord_guild_id", DISCORD_GUILD_ID)
         object.__setattr__(self, "username", USERNAME)
         cx, cy, cw, ch = CHAT_REGION
         object.__setattr__(self, "chat_region_x", cx)
@@ -132,8 +129,6 @@ class HunterConfig:
         object.__setattr__(self, "skip_click_y", _run_btn[1])
         object.__setattr__(self, "white_pixel_x", _pokeball[0])
         object.__setattr__(self, "white_pixel_y", _pokeball[1])
-        object.__setattr__(self, "white_color", POKEBALL_COLOR)
-        object.__setattr__(self, "white_tolerance", POKEBALL_TOLERANCE)
 
 
 DEFAULT_HUNTER_CONFIG = HunterConfig()

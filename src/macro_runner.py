@@ -135,11 +135,3 @@ class MacroRunner:
                 self._discord_bot.send_log_embed_sync(f"```\n{text}\n```")
             except Exception as e:
                 print(f"[MacroRunner] Failed to send log via Discord bot: {e}")
-        elif self._config.discord_webhook:
-            from .discord_webhook import send_discord_webhook
-
-            send_discord_webhook(
-                self._config.discord_webhook,
-                f"```\n{text}\n```",
-                username="Poopimon Notifier",
-            )

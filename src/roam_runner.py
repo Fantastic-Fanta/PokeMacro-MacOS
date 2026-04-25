@@ -1,16 +1,15 @@
 import subprocess
 import time
 from pathlib import Path
+from typing import Optional
 
 import pyautogui
 
-from .debug_hook import is_debug_webhook, send_debug_log
-from .discord_webhook import send_discord_webhook
-from .hunter_config import CONFIG_FILE_PATH, DEFAULT_HUNTER_CONFIG, HunterConfig
+from .discord_bot import DiscordBot
+from .hunter_config import DEFAULT_HUNTER_CONFIG, HunterConfig
 from .ocr_screen import OcrService, ScreenRegion
 from .pixel_color import PixelColorService
 from .roam_text import (
-    capture_full_screen_to_file,
     capture_sprite_region_to_file,
     is_special_roaming,
     is_text_in_wishlist,
@@ -37,9 +36,14 @@ class HunterRunner:
         self._running = False
         self._project_dir = Path(__file__).resolve().parent.parent
         self._screenshot_path = self._project_dir / "roaming_sprite_screenshot.png"
-        self._debug_full_screen_path = self._project_dir / "debug_full_screen.png"
-        self._config_path = Path(CONFIG_FILE_PATH) if CONFIG_FILE_PATH else (self._project_dir / "configs.yaml")
         self._log_path = self._project_dir / "hunting_history.log"
+        self._discord_bot: Optional[DiscordBot] = None
+        if config.discord_bot_token and config.discord_guild_id:
+            try:
+                self._discord_bot = DiscordBot(config.discord_bot_token, config.discord_guild_id)
+            except Exception as e:
+                print(f"[HunterRunner] Failed to initialize Discord bot: {e}")
+                self._discord_bot = None
 
     def _log_find(self, ocr_text: str) -> None:
         line = f"{ocr_text}\n"
@@ -62,35 +66,12 @@ class HunterRunner:
             self._config.sprite_region_height,
             str(self._screenshot_path),
         )
-        if is_debug_webhook(self._config.discord_webhook):
-            capture_full_screen_to_file(str(self._debug_full_screen_path))
-        if not self._config.discord_webhook or not self._config.discord_webhook.strip():
+        if not self._discord_bot:
             return
         msg = "Something tuff appeared!!!" if is_special else f"Roaming found (OCR: {ocr_text})"
-        send_discord_webhook(
-            self._config.discord_webhook,
+        self._discord_bot.send_notification_sync(
             msg,
             file_path=str(self._screenshot_path) if self._screenshot_path.exists() else None,
-        )
-
-    def _send_debug_log(
-        self,
-        encounter_image,
-        encounter_ocr_text: str,
-        chat_image,
-        chat_ocr_text: str,
-    ) -> None:
-        if not is_debug_webhook(self._config.discord_webhook):
-            return
-        full_screen = str(self._debug_full_screen_path) if self._debug_full_screen_path.exists() else None
-        send_debug_log(
-            self._config.discord_webhook,
-            encounter_ocr_text=encounter_ocr_text,
-            encounter_image=encounter_image,
-            chat_ocr_text=chat_ocr_text,
-            chat_image=chat_image,
-            full_screen_path=full_screen or "",
-            config_path=str(self._config_path),
         )
 
     def _is_roblox_focused(self) -> bool:
@@ -154,12 +135,10 @@ class HunterRunner:
             self._config.wishlist_items,
         ):
             self._send_sprite_to_discord(text, is_special=True)
-            self._send_debug_log(encounter_image, text, chat_image, chat_text)
             self._handle_special_roaming()
             self._running = False
             return
         self._send_sprite_to_discord(text, is_special=False)
-        self._send_debug_log(encounter_image, text, chat_image, chat_text)
         pyautogui.click(self._config.skip_click_x, self._config.skip_click_y)
         time.sleep(3.0)
         return
@@ -175,9 +154,13 @@ class HunterRunner:
             time.sleep(interval)
 
     def run(self) -> None:
-        time.sleep(self._config.initial_delay_seconds)
-        self._running = True
+        if self._discord_bot:
+            print("[HunterRunner] Starting Discord bot...")
+            self._discord_bot.start()
+            time.sleep(2)
         try:
+            time.sleep(self._config.initial_delay_seconds)
+            self._running = True
             while self._running:
                 self._check_autostop()
                 if self._running:
@@ -193,6 +176,9 @@ class HunterRunner:
                 pyautogui.keyUp("d")
             except Exception:
                 pass
+            if self._discord_bot:
+                print("[HunterRunner] Stopping Discord bot...")
+                self._discord_bot.stop()
 
     def stop(self) -> None:
         self._running = False
