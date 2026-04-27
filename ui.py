@@ -122,6 +122,12 @@ def _init_colors() -> None:
     _Colors.MUTED = NSColor.secondaryLabelColor()
 
 
+# ── Flipped view (y=0 at top) for scroll view document views ──────────
+class _FlippedView(NSView):
+    def isFlipped(self) -> bool:
+        return True
+
+
 # ── Card view (dark-mode adaptive bordered box) ────────────────────────
 class _CardView(NSView):
     def viewDidChangeEffectiveAppearance(self) -> None:
@@ -293,6 +299,38 @@ class _UI:
         doc.topAnchor().constraintEqualToAnchor_(cv.topAnchor()).setActive_(True)
         doc.widthAnchor().constraintEqualToAnchor_(cv.widthAnchor()).setActive_(True)
         return sc
+
+    @staticmethod
+    def tab_scroll(doc: NSView) -> NSView:
+        """Scrollable tab content view. Uses a flipped document container so
+        content anchors to the top, wrapped in a plain NSView so NSTabView
+        can resize it via setFrame:."""
+        fv = _FlippedView.alloc().init()
+        fv.setTranslatesAutoresizingMaskIntoConstraints_(False)
+        doc.setTranslatesAutoresizingMaskIntoConstraints_(False)
+        fv.addSubview_(doc)
+        doc.leadingAnchor().constraintEqualToAnchor_(fv.leadingAnchor()).setActive_(True)
+        doc.trailingAnchor().constraintEqualToAnchor_(fv.trailingAnchor()).setActive_(True)
+        doc.topAnchor().constraintEqualToAnchor_(fv.topAnchor()).setActive_(True)
+        doc.bottomAnchor().constraintEqualToAnchor_(fv.bottomAnchor()).setActive_(True)
+
+        sc = NSScrollView.alloc().init()
+        sc.setDocumentView_(fv)
+        sc.setDrawsBackground_(True)
+        sc.setHasVerticalScroller_(True)
+        sc.setAutohidesScrollers_(True)
+        sc.setBorderType_(0)
+
+        cv = sc.contentView()
+        fv.leadingAnchor().constraintEqualToAnchor_(cv.leadingAnchor()).setActive_(True)
+        fv.topAnchor().constraintEqualToAnchor_(cv.topAnchor()).setActive_(True)
+        fv.widthAnchor().constraintEqualToAnchor_(cv.widthAnchor()).setActive_(True)
+
+        w = NSView.alloc().init()
+        sc.setTranslatesAutoresizingMaskIntoConstraints_(False)
+        w.addSubview_(sc)
+        _UI.pin_edges(sc, w)
+        return w
 
     @staticmethod
     def box(inner: NSView) -> NSView:
@@ -528,6 +566,7 @@ class PokeMacroController(NSObject):
             item.setLabel_(label)
             item.setView_(view)
             self._tab.addTabViewItem_(item)
+        self._tab.selectTabViewItemAtIndex_(0)
         self._tab.setTranslatesAutoresizingMaskIntoConstraints_(False)
 
     # ── Window ─────────────────────────────────────────────────────
@@ -783,7 +822,7 @@ class PokeMacroController(NSObject):
             self._all_config_controls.append(tv)
             outer.addView_inGravity_(_UI.box(inner), NSStackViewGravityTop)
 
-        return _UI.full_scroll(outer)
+        return _UI.tab_scroll(outer)
 
     # ── Positions tab ──────────────────────────────────────────────
     @objc.python_method
@@ -851,7 +890,7 @@ class PokeMacroController(NSObject):
             reg.addView_inGravity_(grid_r, NSStackViewGravityTop)
             outer.addView_inGravity_(_UI.box(reg), NSStackViewGravityTop)
 
-        return _UI.full_scroll(outer)
+        return _UI.tab_scroll(outer)
 
     # ── Logs tab ───────────────────────────────────────────────────
     @objc.python_method
