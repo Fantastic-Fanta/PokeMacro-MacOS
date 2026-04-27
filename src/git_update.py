@@ -1,6 +1,3 @@
-"""
-Background git pull on startup (ff-only). Skipped if not a clone or POKEMACRO_SKIP_GIT_UPDATE is set.
-"""
 from __future__ import annotations
 
 import os
