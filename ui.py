@@ -301,6 +301,18 @@ class _UI:
         return sc
 
     @staticmethod
+    def add_card(stack: NSStackView, content: NSView, pad: float = UI_PAD) -> NSView:
+        """Wrap `content` in a card and append to `stack`, constraining the card
+        to span the stack's full width (minus `pad` on each side) so all cards
+        in a column line up."""
+        box = _UI.box(content)
+        stack.addView_inGravity_(box, NSStackViewGravityTop)
+        box.widthAnchor().constraintEqualToAnchor_constant_(
+            stack.widthAnchor(), -2 * pad
+        ).setActive_(True)
+        return box
+
+    @staticmethod
     def tab_scroll(doc: NSView) -> NSView:
         """Scrollable tab content view. Uses a flipped document container so
         content anchors to the top, wrapped in a plain NSView so NSTabView
@@ -765,7 +777,7 @@ class PokeMacroController(NSObject):
         self._fast = _UI.popup(["Default", "Fast"])
         self._all_config_controls.append(self._fast)
         hunt.addView_inGravity_(self._form_row("Speed", self._fast), NSStackViewGravityTop)
-        outer.addView_inGravity_(_UI.box(hunt), NSStackViewGravityTop)
+        _UI.add_card(outer, hunt)
 
         filters = _UI.v_stack(spacing=8.0)
         filters.addView_inGravity_(
@@ -784,7 +796,8 @@ class PokeMacroController(NSObject):
             self._bools[key] = cb
             self._all_config_controls.append(cb)
             filters.addView_inGravity_(cb, NSStackViewGravityTop)
-        outer.addView_inGravity_(_UI.box(filters), NSStackViewGravityTop)
+        _UI.add_card(outer, filters)
+        outer.addView_inGravity_(_UI.spacer_v(), NSStackViewGravityTop)
 
         w = NSView.alloc().init()
         w.addSubview_(outer)
@@ -820,7 +833,7 @@ class PokeMacroController(NSObject):
             inner.addView_inGravity_(_UI.scroll(tv, h), NSStackViewGravityTop)
             self._wish[name] = tv
             self._all_config_controls.append(tv)
-            outer.addView_inGravity_(_UI.box(inner), NSStackViewGravityTop)
+            _UI.add_card(outer, inner)
 
         return _UI.tab_scroll(outer)
 
@@ -866,7 +879,7 @@ class PokeMacroController(NSObject):
         for xf, yf in self._pos.values():
             self._all_config_controls.extend([xf, yf])
         markers.addView_inGravity_(grid, NSStackViewGravityTop)
-        outer.addView_inGravity_(_UI.box(markers), NSStackViewGravityTop)
+        _UI.add_card(outer, markers)
 
         self._regions: dict[str, dict[str, tuple[NSTextField, NSTextField]]] = {}
         for title, rkey in [
@@ -888,7 +901,7 @@ class PokeMacroController(NSObject):
                 self._all_config_controls.extend([xf, yf])
             grid_r.setTranslatesAutoresizingMaskIntoConstraints_(False)
             reg.addView_inGravity_(grid_r, NSStackViewGravityTop)
-            outer.addView_inGravity_(_UI.box(reg), NSStackViewGravityTop)
+            _UI.add_card(outer, reg)
 
         return _UI.tab_scroll(outer)
 
@@ -931,7 +944,7 @@ class PokeMacroController(NSObject):
         discord.addView_inGravity_(
             self._form_row("Server ID (numeric)", self._server), NSStackViewGravityTop
         )
-        outer.addView_inGravity_(_UI.box(discord), NSStackViewGravityTop)
+        _UI.add_card(outer, discord)
 
         output = _UI.v_stack(spacing=8.0)
         output.addView_inGravity_(
@@ -951,7 +964,8 @@ class PokeMacroController(NSObject):
         self._log.setTextContainerInset_((6, 6))
         self._log._apply()
         output.addView_inGravity_(_UI.scroll(self._log, 300), NSStackViewGravityTop)
-        outer.addView_inGravity_(_UI.box(output), NSStackViewGravityTop)
+        _UI.add_card(outer, output)
+        outer.addView_inGravity_(_UI.spacer_v(), NSStackViewGravityTop)
 
         w = NSView.alloc().init()
         w.addSubview_(outer)
