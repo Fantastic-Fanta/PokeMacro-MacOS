@@ -43,6 +43,8 @@ from AppKit import (
     NSToolbar, NSToolbarDisplayModeIconOnly, NSToolbarItem,
     NSUserInterfaceLayoutOrientationHorizontal,
     NSUserInterfaceLayoutOrientationVertical,
+    NSEvent,
+    NSScreen,
     NSView,
     NSVisualEffectBlendingModeBehindWindow,
     NSVisualEffectMaterialSidebar,
@@ -71,11 +73,12 @@ _venv = PROJECT_ROOT / "ENV" / "bin" / "python"
 VENV_PYTHON = _venv if _venv.exists() else Path(sys.executable)
 
 # ── Layout constants ───────────────────────────────────────────────────
-SIDEBAR_W = 200.0
-UI_PAD    = 20.0
-LABEL_W   = 155.0
-FIELD_W   = 80.0
-BADGE_W   = 16.0
+SIDEBAR_W  = 200.0
+UI_PAD     = 20.0
+LABEL_W    = 155.0
+FIELD_W    = 80.0
+BADGE_W    = 16.0
+PICK_BTN_W = 26.0
 
 # ── Data ───────────────────────────────────────────────────────────────
 POSITION_KEYS = [
@@ -570,6 +573,10 @@ class PokeMacroController(NSObject):
         self._run_item         = None
         self._status_iv        = None
         self._status_label     = None
+        self._pick_map: dict   = {}
+        self._pick_monitor     = None
+        self._pick_fields      = None
+        self._pick_btn         = None
 
         self._build_content_panels()
         self._build_window()
@@ -615,6 +622,7 @@ class PokeMacroController(NSObject):
         self._window.setMinSize_(NSMakeSize(628, 500))
         self._window.setDelegate_(self)
         self._window.setReleasedWhenClosed_(False)
+        self._window.setLevel_(3)  # NSFloatingWindowLevel — always on top
         self._build_toolbar()
         self._window.setToolbar_(self._toolbar)
         self._window.setContentView_(self._build_split_view())
@@ -908,14 +916,22 @@ class PokeMacroController(NSObject):
             xf.setStringValue_("0")
             yf = _UI.field(width=FIELD_W)
             yf.setStringValue_("0")
+            pb = _UI.button("", self, b'pickCoord:')
+            scope_img = _UI.sf("scope", "Pick coordinate", size=13.0)
+            if scope_img:
+                pb.setImage_(scope_img)
+            pb.setTranslatesAutoresizingMaskIntoConstraints_(False)
+            pb.widthAnchor().constraintEqualToConstant_(PICK_BTN_W).setActive_(True)
+            self._pick_map[id(pb)] = (xf, yf)
             result[key] = (xf, yf)
-            row = gv.addRowWithViews_([la, xb, xf, yb, yf])
+            row = gv.addRowWithViews_([la, xb, xf, yb, yf, pb])
             row.setRowAlignment_(NSGridRowAlignmentFirstBaseline)
         gv.columnAtIndex_(0).setWidth_(LABEL_W)
         gv.columnAtIndex_(1).setWidth_(BADGE_W)
         gv.columnAtIndex_(2).setWidth_(FIELD_W)
         gv.columnAtIndex_(3).setWidth_(BADGE_W)
         gv.columnAtIndex_(4).setWidth_(FIELD_W)
+        gv.columnAtIndex_(5).setWidth_(PICK_BTN_W)
         return gv, result
 
     @objc.python_method
@@ -958,6 +974,62 @@ class PokeMacroController(NSObject):
             _UI.add_card(outer, reg)
 
         return _UI.tab_scroll(outer)
+
+    # ── Coordinate pick ────────────────────────────────────────────
+    def pickCoord_(self, sender) -> None:
+        # Cancel any in-progress pick first
+        if self._pick_monitor is not None:
+            NSEvent.removeMonitor_(self._pick_monitor)
+            self._pick_monitor = None
+        if self._pick_btn is not None:
+            self._pick_btn.setImage_(_UI.sf("scope", "Pick coordinate", size=13.0))
+            self._pick_btn.setTitle_("")
+            self._pick_btn.setEnabled_(True)
+        self._pick_fields = None
+        self._pick_btn = None
+
+        fields = self._pick_map.get(id(sender))
+        if fields is None:
+            return
+
+        self._pick_fields = fields
+        self._pick_btn = sender
+        sender.setImage_(_UI.sf("scope.fill", "Waiting", size=13.0) or sender.image())
+        sender.setEnabled_(False)
+
+        ctrl = self
+
+        def _handler(event):
+            pt = NSEvent.mouseLocation()
+            h = NSScreen.mainScreen().frame().size.height
+            x = int(round(pt.x))
+            y = int(round(h - pt.y))
+            is_click = event.type() == 1  # NSEventTypeLeftMouseDown
+            NSOperationQueue.mainQueue().addOperationWithBlock_(
+                lambda: ctrl._applyPick(x, y, finalize=is_click)
+            )
+
+        self._pick_monitor = NSEvent.addGlobalMonitorForEventsMatchingMask_handler_(
+            (1 << 1) | (1 << 5),  # NSEventMaskLeftMouseDown | NSEventMaskMouseMoved
+            _handler,
+        )
+
+    @objc.python_method
+    def _applyPick(self, x: int, y: int, finalize: bool = True) -> None:
+        if self._pick_fields is not None:
+            self._pick_fields[0].setStringValue_(str(x))
+            self._pick_fields[1].setStringValue_(str(y))
+        if not finalize:
+            return
+        self._pick_fields = None
+        if self._pick_monitor is not None:
+            NSEvent.removeMonitor_(self._pick_monitor)
+            self._pick_monitor = None
+        if self._pick_btn is not None:
+            self._pick_btn.setImage_(_UI.sf("scope", "Pick coordinate", size=13.0))
+            self._pick_btn.setTitle_("")
+            self._pick_btn.setEnabled_(True)
+            self._pick_btn = None
 
     # ── Logs tab ───────────────────────────────────────────────────
     @objc.python_method
