@@ -299,19 +299,3 @@ def start_background_update(
         _http_release_update(repo, emit, force=False)
 
     threading.Thread(target=work, daemon=True, name="auto-update").start()
-
-
-def force_http_update(emit: Callable[[str], None]) -> bool:
-    """Same as background update but ignores local version and branch commit cache.
-
-    For manual use: ``python3 -m update.main``. Not used by the UI or ``src.main``.
-    """
-    repo = _resolve_github_repo()
-    if not repo:
-        emit(
-            "[update] No repo for updates: set UPDATE_GITHUB_REPO in git_update.py, "
-            "or add owner/repo as the first line of update_repo.txt "
-            "(GitHub origin URL from .git/config is used when present)."
-        )
-        return False
-    return _http_release_update(repo, emit, force=True)

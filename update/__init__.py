@@ -1,1 +1,1 @@
-"""CLI-only force update entry lives in ``update.main``."""
+"""Manual force-update package; entry point ``python3 -m update.main``."""
