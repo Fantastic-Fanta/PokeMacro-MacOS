@@ -113,3 +113,10 @@ IsAny: false
 IsGood: true
 DiscordBotToken: ''
 ServerID: 0
+DexScanner:
+  Rows: 23
+  Cols: 33
+  SampleOffset:
+  - 10
+  - 10
+  OutputFile: missing-poopimons.txt

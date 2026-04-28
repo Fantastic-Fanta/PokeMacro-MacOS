@@ -1,0 +1,975 @@
+**Last updated:** <t:1762724892:D> in **v1.3.2**
+## Aborille Outpost
+**Wild Grass**
+Drampa [3.4%], Item: Persim Berry (20%)
+Lunatone [6.9%], Items: Moon Stone (20%), Stardust (2%)
+Mienfoo [24.1%]
+Ponyta-Galar [20.7%]
+Solrock [13.8%], Items: Sun Stone (20%), Stardust (2%)
+Weezing-Galar [10.3%], Item: Roseli Berry (20%)
+Wobbuffet [20.7%]
+## Anthian Sewer
+**Wild Grass**
+Elekid [1.8%], Item: Electirizer (20%)
+Farfetch'd [17.9%], Item: Stick (20%)
+Grimer [8.9%], Item: Black Sludge (20%)
+Klink [17.9%]
+Koffing [8.9%], Item: Smoke Ball (20%)
+Magnemite [22.3%]
+Voltorb [22.3%]
+## Battle Colosseum
+**Surfing**
+Basculegion [20%], Item: DeepSeaTooth (20%)
+Gyarados [20%]
+Milotic [20%]
+Overqwil [20%]
+Sharpedo [20%]
+## Chamber of the Jewel
+**Wild Grass**
+Dottler [11.4%], Item: Leftovers (80%)
+Duosion [19.0%]
+Eldegoss [4.8%]
+Foongus [19.0%], Items: Big Mushroom (20%), Tiny Mushroom (2%)
+Illumise [9.5%], Item: BrightPowder (20%)
+Joltik [9.5%]
+Tangela [14.3%]
+Tynamo [2.9%]
+Volbeat [9.5%], Item: BrightPowder (20%)
+## Cosmeos Valley
+**Wild Grass**
+Cottonee [23.1%], Item: White Herb (20%)
+Cyclizar [5.8%]
+Hawlucha [1.4%], Item: King's Rock (20%)
+Karrablast [0.6%]
+Minior [11.5%], Items: Star Piece (20%), Wishing Piece (5%)
+Mr. Rime [3.7%]
+Munna [23.1%]
+Shelmet [0.6%]
+Skarmory [5.8%]
+Sneasel-Hisuian [4.3%]
+Vigoroth [20.2%]
+**Fishing (Good Rod)**
+Basculin [15.8%], Item: DeepSeaTooth (20%)
+Goldeen [52.6%], Item: Mystic Water (20%)
+Luvdisc [5.3%], Item: Heart Scale (2%)
+Magikarp [26.3%]
+**Fishing (Old Rod)**
+Basculin [16.7%], Item: DeepSeaTooth (20%)
+Goldeen [27.8%], Item: Mystic Water (20%)
+Magikarp [55.6%]
+## Cragonos Cliffs
+**Wild Grass**
+Bagon [3.9%], Item: Dragon Fang (20%)
+Gligar [3.9%]
+Oricorio [6.2%]
+Pidgeotto [15.6%]
+Skiddo [15.6%]
+Spearow [23.4%], Item: Sharp Beak (20%)
+Vullaby [7.8%]
+Woobat [23.4%], Night only
+## Cragonos Mines
+**Wild Grass**
+Cufant [2%]
+Diglett [6.7%], Item: Soft Sand (20%)
+Drilbur [2%]
+Geodude [20%], Item: Everstone (20%)
+Larvitar [1.3%]
+Meditite [10%]
+Nacli [10%]
+Onix [4.7%]
+Roggenrola [20%], Items: Hard Stone (20%), Everstone (2%)
+Woobat [23.3%], Day only
+**Fishing (Old Rod)**
+Chinchou [6.2%], Item: DeepSeaScale (67%)
+Goldeen [31.2%], Item: Mystic Water (20%)
+Magikarp [62.5%]
+**Surfing**
+Clauncher [9.1%]
+Goldeen [45.5%], Item: Mystic Water (20%)
+Magikarp [27.3%]
+Tentacool [18.2%], Item: Poison Barb (20%)
+**Fishing (Good Rod)**
+Chinchou [16.7%], Item: DeepSeaScale (67%)
+Goldeen [27.8%], Item: Mystic Water (20%)
+Magikarp [55.6%]
+## Cragonos Peak
+**Wild Grass**
+Castform [6.8%]
+Doduo [20.3%], Item: Sharp Beak (20%)
+Dubwool [20.3%], Day only
+Inkay [6.8%]
+Rufflet [1.4%]
+Skiddo [20.3%]
+Spearow [20.3%], Item: Sharp Beak (20%)
+Stantler [4.1%]
+## Cragonos Spring
+**Wild Grass**
+Diglett [7.6%], Item: Soft Sand (20%)
+Drilbur [2.3%]
+Geodude [22.7%], Item: Everstone (20%)
+Larvitar [1.5%]
+Meditite [11.4%]
+Onix [5.3%]
+Roggenrola [22.7%], Items: Hard Stone (20%), Everstone (2%)
+Woobat [26.5%], Day only
+**Surfing**
+Clauncher [9.1%]
+Goldeen [45.5%], Item: Mystic Water (20%)
+Magikarp [27.3%]
+Tentacool [18.2%], Item: Poison Barb (20%)
+**Fishing (Good Rod)**
+Chinchou [16.7%], Item: DeepSeaScale (67%)
+Goldeen [27.8%], Item: Mystic Water (20%)
+Magikarp [55.6%]
+**Fishing (Old Rod)**
+Chinchou [6.2%], Item: DeepSeaScale (67%)
+Goldeen [31.2%], Item: Mystic Water (20%)
+Magikarp [62.5%]
+## Crescent Town
+**Fishing (Good Rod)**
+Binacle [21.7%]
+Clamperl [4.3%], Items: Big Pearl (20%), Pearl (2%)
+Dhelmise [4.3%], Item: Persim Berry (20%)
+Finneon [13.0%]
+Frillish [21.7%]
+Goldeen [13.0%], Item: Mystic Water (20%)
+Tentacool [21.7%], Item: Poison Barb (20%)
+**Surfing**
+Binacle [25%]
+Clamperl [5%], Items: Big Pearl (20%), Pearl (2%)
+Frillish [25%]
+Lumineon [10%]
+Seaking [10%], Item: Mystic Water (20%)
+Tentacruel [25%], Item: Poison Barb (20%)
+**Fishing (Old Rod)**
+Clamperl [4.9%], Items: Big Pearl (20%), Pearl (2%)
+Finneon [48.8%]
+Goldeen [24.4%], Item: Mystic Water (20%)
+Tentacool [22.0%], Item: Poison Barb (20%)
+## Decca Beach
+**Fishing (Good Rod)**
+Finneon [26.4%]
+Grapploct [18.9%]
+Gyarados [15.1%]
+Remoraid [1.9%]
+Tentacool [37.7%], Item: Poison Barb (20%)
+**Surfing**
+Carvanha [29.4%], Item: DeepSeaTooth (20%)
+Cramorant [17.6%]
+Lumineon [17.6%]
+Mantine [5.9%]
+Tentacruel [29.4%], Item: Poison Barb (20%)
+**Fishing (Old Rod)**
+Finneon [28.6%]
+Grapploct [14.3%]
+Tentacool [57.1%], Item: Poison Barb (20%)
+## Desert Catacombs
+**Wild Grass**
+Unown [100%]
+## Easter Retreat
+**Wild Grass**
+Arcanine-blue [0.3%]
+Arcanine-green [0.3%]
+Arcanine-purple [0.3%]
+Beedrill-blue [0.4%]
+Beedrill-pink [0.4%]
+Buneary-blue [0.5%]
+Buneary-green [0.5%]
+Buneary-purple [0.5%]
+Golduck-blue [2.7%]
+Golduck-green [2.7%]
+Golduck-pink [2.7%]
+Groudon-blue [0.0%]
+Groudon-green [0.0%]
+Groudon-purple [0.0%]
+Growlithe-blue [5.4%]
+Growlithe-green [5.4%]
+Growlithe-purple [5.4%]
+Gyarados-pink [0.8%]
+Gyarados-purple [0.8%]
+Jirachi-green [0.0%]
+Kakuna-blue [6.3%]
+Kakuna-pink [6.3%]
+Lopunny-blue [0.3%]
+Lopunny-green [0.3%]
+Lopunny-purple [0.3%]
+Lucario-green [0.3%]
+Lucario-purple [0.3%]
+Lycanroc-blue [0.3%]
+Lycanroc-green [0.3%]
+Lycanroc-purple [0.3%]
+Magby-blue [0.5%]
+Magby-pink [0.5%]
+Magby-purple [0.5%]
+Magikarp-pink [6.0%]
+Magikarp-purple [6.0%]
+Magmar-blue [0.4%]
+Magmar-pink [0.4%]
+Magmar-purple [0.4%]
+Magmortar-blue [0.3%]
+Magmortar-pink [0.3%]
+Magmortar-purple [0.3%]
+Pikachu-blue [2.4%]
+Pikachu-pink [2.4%]
+Psyduck-blue [5.4%]
+Psyduck-green [5.4%]
+Psyduck-pink [5.4%]
+Raichu-blue [0.3%]
+Raichu-pink [0.3%]
+Riolu-green [0.3%]
+Riolu-purple [0.3%]
+Rockruff-blue [0.5%]
+Rockruff-green [0.5%]
+Rockruff-purple [0.5%]
+Weedle-blue [8.2%]
+Weedle-pink [8.2%]
+## Fortulose Manor
+**Indoors**
+Rattata [37.5%], Item: Chilan Berry (5.0%)
+Shuppet [25.0%], Item: Spell Tag (5.0%)
+Duskull [25.0%], Item: Spell Tag (5.0%)
+Misdreavus [10.0%]
+Honedge [2.5%]
+**Wild Grass**
+Dreepy [1.0%]
+Golett [4.2%], Item: Light Clay (20%)
+Phantump [31.2%]
+Poltchageist [31.2%], Item: Unremarkable Teacup (20%)
+Pumpkaboo [31.2%], Item: Miracle Seed (1%)
+Sableye [1.0%]
+**Fishing (Good Rod)**
+Feebas [30%]
+Magikarp [70%]
+**Fishing (Old Rod)**
+Feebas [5.3%]
+Magikarp [94.7%]
+## Freezing Fissure
+**Wild Grass**
+Cryogonal [17.2%], Item: Never-Melt Ice (20%)
+Cubchoo [27.6%]
+Delibird  [0.7%]
+Frigibax [3.4%]
+Jynx [3.4%]
+Munna [27.6%]
+Snorunt [20%], Item: Snowball (20%)
+## Frigidia Cavern
+**Wild Grass**
+Piloswine [23.0%]
+Sandshrew-Alola [13.5%], Item: Grip Claw (20%)
+Snorunt [23.0%], Item: Snowball (20%)
+Swinub [27.0%]
+Vulpix-Alola [13.5%], Item: Snowball (20%)
+## Gale Forest
+**Wild Grass**
+Blipbug [6.2%]
+Caterpie [12.4%]
+Hoothoot [6.2%], Night only
+Kakuna [6.2%]
+Ledyba [9.3%], Day only
+Metapod [6.2%]
+Mimikyu [1.9%], Night only, Item: Chesto Berry (20%)
+Nickit [3.1%]
+Nidoran♂ [6.2%]
+Nidoran♀ [6.2%]
+Nymble [6.2%]
+Pikachu [1.9%], Day only, Item: Light Ball (20%)
+Spinarak [9.3%], Night only
+Tarountula [6.2%]
+Weedle [12.4%]
+## Glistening Grotto
+**Fishing (Old Rod)**
+Goldeen [66.7%], Item: Mystic Water (20%)
+Shellder [33.3%], Items: Big Pearl (20%), Pearl (2%)
+**Fishing (Good Rod)**
+Goldeen [58.8%], Item: Mystic Water (20%)
+Relicanth [2.9%], Item: DeepSeaScale (67%)
+Shellder [38.2%], Items: Big Pearl (20%), Pearl (2%)
+**Wild Grass**
+Aron [2.1%], Item: Hard Stone (20%)
+Boldore [13.9%], Items: Hard Stone (20%), Everstone (2%)
+Bronzor [17.4%]
+Carbink [10.4%]
+Elgyem [6.9%]
+Glimmet [6.9%]
+Mawile [3.5%], Item: Iron Ball (20%)
+Orthworm [6.9%]
+Sableye [3.5%], Item: Wide Lens (20%)
+Tinkatink [6.9%]
+Toxel [4.2%], Item: Black Sludge (50%)
+Zubat [17.4%], Day only
+## Grove of Dreams
+**Fishing (Good Rod)**
+Dratini [2%], Item: Dragon Scale (20%)
+Magikarp [98%]
+**Fishing (Old Rod)**
+Magikarp [100%]
+**Wild Grass**
+Chatot [4.2%], Item: Metronome (20%)
+Kricketot [29.2%], Night only, Item: Metronome (20%)
+Mankey [12.5%]
+Meowth [7.5%]
+Minccino [8.3%], Day only
+Pancham [1.7%], Item: Mental Herb (20%)
+Snubbull [8.3%]
+Venipede [20.8%], Item: Poison Barb (20%)
+Zorua-Hisuian [7.5%]
+## Igneus Depths
+**Wild Grass**
+Centiskorch [18.2%]
+Heatmor [4.5%]
+Magmar [7.3%], Item: Magmarizer (20%)
+Numel [18.2%]
+Salandit [18.2%]
+Slugma [18.2%]
+Torkoal [15.5%], Item: Charcoal (20%)
+## Lagoona Lake
+**Fishing (Old Rod)**
+Goldeen [16.7%], Item: Mystic Water (20%)
+Magikarp [83.3%]
+**Surfing**
+Ducklett [7.1%]
+Goldeen [71.4%], Item: Mystic Water (20%)
+Gyarados [21.4%]
+**Fishing (Good Rod)**
+Goldeen [100%], Item: Mystic Water (20%)
+## Lost Islands
+**Fishing (Old Rod)**
+Finneon [33.3%]
+Tentacool [66.7%], Item: Poison Barb (20%)
+**Wild Grass**
+Grubbin [8.3%]
+Kangaskhan [8.3%]
+Oranguru [8.3%]
+Pikipek [19.3%], Item: Oran Berry (20%)
+Rattata-Alola [19.3%], Items: Chilan Berry (20%), Pecha Berry (2%)
+Rockruff [3.7%]
+Yamask-Galar [5.5%], Night only
+Yungoos [27.5%], Item: Pecha Berry (20%)
+**Surfing**
+Corsola [5.6%], Item: Luminous Moss (20%)
+Dondozo [11.1%]
+Lumineon [11.1%]
+Tatsugiri [11.1%]
+Tatsugiri-Droopy [11.1%]
+Tatsugiri-Stretchy [11.1%]
+Tentacool [11.1%], Item: Poison Barb (20%)
+Tentacruel [27.8%], Item: Poison Barb (20%)
+**Fishing (Good Rod)**
+Lumineon [28.2%]
+Mareanie [1.1%], Item: Poison Barb (20%)
+Tentacool [14.1%], Item: Poison Barb (20%)
+Tentacruel [56.5%], Item: Poison Barb (20%)
+## Lost Islands - Deep Jungle
+**Fishing (Old Rod)**
+Finneon [20%]
+Tentacool [80%], Item: Poison Barb (20%)
+**Wild Grass**
+Bounsweet [21.8%], Item: Grassy Seed (20%)
+Crabrawler [1.9%], Item: Aspear Berry (20%)
+Cutiefly [29.0%], Item: Honey (20%)
+Dewpider [14.5%], Item: Mystic Water (20%)
+Farfetch'd-Galar [7.3%]
+Fomantis [9.1%], Item: Miracle Seed (20%)
+Jangmo-o [1.9%]
+Meowth-Alola [7.3%], Item: Quick Claw (20%)
+Passimian [7.3%]
+**Surfing**
+Corsola [8%], Item: Luminous Moss (20%)
+Dondozo [12%]
+Lumineon [16%]
+Tatsugiri [12%]
+Tatsugiri-Droopy [12%]
+Tatsugiri-Stretchy [12%]
+Tentacool [12%], Item: Poison Barb (20%)
+Tentacruel [16%], Item: Poison Barb (20%)
+**Fishing (Good Rod)**
+Gyarados [16.2%]
+Lumineon [24.3%]
+Tentacool [32.4%], Item: Poison Barb (20%)
+Tentacruel [24.3%], Item: Poison Barb (20%)
+Wishiwashi [2.9%]
+## Magik Pond
+**Fishing (Old Rod)**
+Magikarp-Gyarados [10%]
+Magikarp-Monochrome [10%]
+Magikarp-OrangeDapples [10%]
+Magikarp-PinkDapples [10%]
+Magikarp-Rayquaza [10%]
+Magikarp-Relicanth [10%]
+Magikarp-Seaking [10%]
+Magikarp-Wasp [10%]
+Magikarp-YinYang [10%]
+**Fishing (Good Rod)**
+Magikarp-Gyarados [10%]
+Magikarp-Monochrome [10%]
+Magikarp-OrangeDapples [10%]
+Magikarp-PinkDapples [10%]
+Magikarp-Rayquaza [10%]
+Magikarp-Relicanth [10%]
+Magikarp-Seaking [10%]
+Magikarp-Wasp [10%]
+Magikarp-YinYang [10%]
+## Mitis Town
+**Fishing (Old Rod)**
+Magikarp [100%]
+**Fishing (Good Rod)**
+Gyarados [5.9%]
+Magikarp [94.1%]
+## Mt. Igneus
+**Wild Grass**
+Charcadet [4%]
+Heatmor [4%]
+Magby [6.4%], Item: Magmarizer (20%)
+Numel [16%]
+Sizzlipede [16%]
+Slugma [16%]
+Torkoal [13.6%], Item: Charcoal (20%)
+Zubat [24%], Day only
+## Obsidia Cavern
+**Wild Grass**
+Camerupt [18.1%]
+Carbink [12.8%]
+Numel [18.1%]
+Sizzlipede [19.1%]
+Slugma [21.3%]
+Turtonator [10.6%], Item: Charcoal (20%)
+## Ocean's Origin
+**Wild Grass**
+Arrokuda [3.1%]
+Bergmite [12.5%]
+Chewtle [6.2%]
+Dewgong [15.6%]
+Frillish [9.4%]
+Mr. Mime-Galar [1.2%]
+Skrelp [9.4%]
+Spheal [15.6%]
+Swanna [4.4%]
+Tirtouga [7.5%]
+Wimpod [7.5%]
+Wishiwashi [7.5%]
+## Old Aredia
+**Wild Grass**
+Cacnea [20.8%], Item: Sticky Barb (20%)
+Centiskorch [5.2%]
+Dunsparce [10.4%]
+Gible [1.0%]
+Hippowdon [26.0%]
+Sandslash [15.6%], Item: Grip Claw (20%)
+Trapinch [20.8%], Item: Soft Sand (20%)
+## Old Graveyard
+**Wild Grass**
+Cubone [28.0%], Item: Thick Club (20%)
+Gastly [21.0%], Night only
+Gothita [10.5%]
+Greavard [10.5%]
+Impidimp [10.5%]
+Mimikyu [2.1%], Night only, Item: Chesto Berry (20%)
+Murkrow [14.0%], Night only
+Yamask [3.5%], Night only, Item: Spell Tag (20%)
+## Path of Truth
+**Wild Grass**
+Axew [47.3%]
+Deino [4.1%]
+Druddigon [2.7%], Item: Dragon Fang (20%)
+Duraludon [4.1%]
+Milcery [1.4%], Item: Whipped Dream (20%)
+Noibat [40.5%]
+## Roria Safari Zone
+**Wild Grass**
+Spritzee [10.4%]
+Swirlix [10.4%]
+Deerling [8.3%]
+Drowzee [8.3%]
+Farfetch'd [8.3%], Item: Stick (20%)
+Ferroseed [4.1%], Item: Sticky Barb (20%)
+Kangaskhan [4.1%]
+Kecleon [4.1%]
+Kecleon-Pink [0.4%]
+Komala [4.1%]
+Lickitung [8.3%], Item: Lagging Tail (20%)
+Morelull [8.3%], Item: Big Mushroom (20%)
+Mudbray [8.3%], Item: Light Clay (20%)
+Rhyhorn [8.3%]
+Rhyhorn-Purple [0.2%]
+Shellos-East [8.3%]
+Spinda [8.3%]
+Stufful [4.1%]
+Tropius [4.1%]
+## Rosecove Beach
+**Coastline**
+Krabby [60%]
+Staryu [40%]
+**Wild Grass**
+Abra [2.1%], Night only, Item: Psychic Seed (1%)
+Chewtle [20.6%]
+Psyduck [10.3%]
+Shellos [20.6%]
+Slowpoke [15.5%], Item: Lagging Tail (20%)
+Wiglett [20.6%]
+Wingull [10.3%], Item: Pretty Wing (2%)
+**Surfing**
+Alomomola [8.3%]
+Finneon [33.3%]
+Lumineon [16.7%]
+Tentacool [41.7%], Item: Poison Barb (20%)
+**Palm Tree**
+Aipom [20%]
+Exeggcute [80%], Item: Psychic Seed (2%)
+**Fishing (Old Rod)**
+Finneon [12.5%]
+Qwilfish-Hisuian [37.5%]
+Tentacool [50%], Item: Poison Barb (20%)
+**Fishing (Good Rod)**
+Finneon [40%]
+Tentacool [50%], Item: Poison Barb (20%)
+Tentacruel [10%], Item: Poison Barb (20%)
+## Route 1
+**Wild Grass**
+Bunnelby [14.0%]
+Fletchling [6.4%]
+Lechonk [7.6%]
+Pidgey [14.5%]
+Rookidee [7.6%]
+Sentret [2.9%], Day only
+Skwovet [14.5%]
+Wooloo [14.5%]
+Wurmple [6.4%], Items: BrightPowder (20%), Pecha Berry (2%)
+Zigzagoon [11.6%], Items: Revive (20%), Potion (2%)
+## Route 10
+**Flower Patch**
+Floette [27.3%]
+Comfey [5%], Item: Misty Seed (5%)
+**Wild Grass**
+Cherubi [22.1%]
+Chimecho [7.4%], Item: Cleanse Tag (20%)
+Ferroseed [4.4%]
+Growlithe [11.0%]
+Grubbin [4.4%]
+Helioptile [2.9%]
+Hoppip [22.1%]
+Pawniard [5.9%]
+Scyther [1.5%]
+Spoink [18.4%]
+**Honey Tree**
+Combee [90%], Item: Honey (20%)
+Teddiursa [10%]
+## Route 11
+**Wild Grass**
+Cacnea [18.5%], Item: Sticky Barb (20%)
+Hippowdon [13.9%]
+Krokorok [7.4%], Item: Black Glasses (20%)
+Maractus [2.8%], Item: Miracle Seed (20%)
+Sandslash [9.3%], Item: Grip Claw (20%)
+Silicobra [11.1%]
+Stonjourner [18.5%], Night only
+Trapinch [18.5%], Item: Soft Sand (20%)
+## Route 12
+**Fishing (Old Rod)**
+Goldeen [31.2%], Item: Mystic Water (20%)
+Magikarp [62.5%]
+Qwilfish [6.2%], Item: Poison Barb (20%)
+**Fishing (Good Rod)**
+Goldeen [52.6%], Item: Mystic Water (20%)
+Magikarp [34.2%]
+Qwilfish [13.2%], Item: Poison Barb (20%)
+**Wild Grass**
+Bouffalant [1.8%]
+Capsakid [11.9%]
+Flamigo [11.9%]
+Flittle [6.0%]
+Houndour [11.9%]
+Kecleon [6.0%]
+Miltank [3.0%], Item: Moomoo Milk (1%)
+Sawk [8.9%], Item: Black Belt (20%)
+Scraggy [6.0%], Item: Shed Shell (20%)
+Tauros [3.0%]
+Throh [8.9%], Item: Black Belt (20%)
+Tranquill [11.9%]
+Vulpix [8.9%], Item: Charcoal (20%)
+## Route 13
+**Wild Grass**
+Dottler [8.9%], Item: Leftovers (80%)
+Duosion [14.8%]
+Eldegoss [3.7%]
+Foongus [14.8%], Items: Big Mushroom (20%), Tiny Mushroom (2%)
+Illumise [7.4%], Item: BrightPowder (20%)
+Indeedee [7.4%]
+Joltik [7.4%]
+Slowpoke-Galar [7.4%]
+Tangela [11.1%]
+Tinkatuff [7.4%]
+Tynamo [2.2%]
+Volbeat [7.4%], Item: BrightPowder (20%)
+## Route 14
+**Wild Grass**
+Beldum [2.6%]
+Clefairy [8.1%], Item: Moon Stone (20%)
+Loudred [19.3%]
+Makuhita [19.3%], Item: Black Belt (20%)
+Morpeko [3.2%]
+Mr. Mime [9.7%]
+Mr. Rime [8.4%]
+Noibat [4.8%]
+Nosepass [16.1%], Item: Magnet (20%)
+Onix-crystal [0.1%]
+Varoom [8.4%]
+## Route 14
+**Wild Grass**
+Beldum [2.8%]
+Clefairy [8.8%], Item: Moon Stone (20%)
+Loudred [21.1%]
+Makuhita [21.1%], Item: Black Belt (20%)
+Morpeko [3.5%]
+Mr. Mime [10.6%]
+Mr. Rime [9.1%]
+Noibat [5.3%]
+Nosepass [17.6%], Item: Magnet (20%)
+Onix-crystal [0.1%]
+## Route 15
+**Fishing (Good Rod)**
+Bergmite [11.1%]
+Seel [33.3%]
+Spheal [55.6%]
+**Fishing (Old Rod)**
+Bergmite [4.5%]
+Magikarp [38.2%]
+Seel [25.5%]
+Spheal [31.8%]
+**Wild Grass**
+Cetoddle [17.8%]
+Darumaka-Galar [8.9%]
+Sneasel [4.4%], Night only, Item: Quick Claw (20%)
+Snom [8.9%], Item: Snowball (20%)
+Snorunt [8.9%], Item: Snowball (20%)
+Snover [17.8%], Item: Never-Melt Ice (20%)
+Swinub [17.8%]
+Vanillite [15.6%], Item: Never-Melt Ice (20%)
+## Route 16
+**Wild Grass**
+Appletun [6.8%]
+Dedenne [6.8%]
+Emolga [6.8%]
+Furfrou [15.9%]
+Jigglypuff [18.2%], Item: Moon Stone (20%)
+Nuzleaf [9.1%], Item: Power Herb (20%)
+Swellow [18.2%]
+Thievul [18.2%]
+## Route 17
+**Fishing (Good Rod)**
+Bruxish [0.8%], Item: Razor Fang (20%)
+Buizel [2.1%]
+Finneon [12.4%]
+Goldeen [16.5%], Item: Mystic Water (20%)
+Horsea [10.3%], Item: Dragon Scale (20%)
+Pyukumuku [4.1%]
+Skrelp [14.5%]
+Tentacool [18.6%], Item: Poison Barb (20%)
+Wailmer [20.7%]
+**Fishing (Old Rod)**
+Buizel [1.5%]
+Finneon [7.6%]
+Goldeen [15.2%], Item: Mystic Water (20%)
+Tentacool [75.8%], Item: Poison Barb (20%)
+**Surfing**
+Basculin-White-Striped [8.6%]
+Eiscue [5.7%]
+Finizen [8.6%]
+Floatzel [2.9%]
+Horsea [8.6%], Item: Dragon Scale (20%)
+Lumineon [8.6%]
+Pyukumuku [2.9%]
+Seaking [8.6%], Item: Mystic Water (20%)
+Skrelp [8.6%]
+Tentacruel [14.3%], Item: Poison Barb (20%)
+Veluza [8.6%]
+Wailmer [14.3%]
+**Sand**
+Sandygast [100%], Item: Spell Tag (20%)
+## Route 18
+**Wild Grass**
+Carnivine [1.6%]
+Croagunk [26.2%], Item: Black Sludge (20%)
+Drakloak [0.1%]
+Drapion [1.6%], Item: Poison Barb (20%)
+Goomy [0.7%], Item: Shed Shell (20%)
+Grimer-Alola [0.7%], Item: Black Sludge (20%)
+Ribombee [13.1%], Item: Honey (20%)
+Sirfetch'd [0.3%]
+Skorupi [6.6%], Item: Poison Barb (20%)
+Swalot [26.2%], Items: Sitrus Berry (20%), Oran Berry (2%)
+Toxicroak [23.0%], Item: Black Sludge (20%)
+## Route 2
+**Wild Grass**
+Dubwool [18.5%]
+Electabuzz [3.7%]
+Fletchinder [18.5%]
+Greedent [18.5%]
+Linoone [14.8%], Items: Revive (20%), Potion (2%)
+Manectric [3.7%], Item: Electric Seed (20%)
+Pidgeotto [18.5%]
+Pincurchin [3.7%], Item: Magnet (20%)
+**Fishing (Old Rod)**
+Barboach [23.1%]
+Magikarp [76.9%]
+**Surfing**
+Barboach [25.9%]
+Goldeen [37.0%], Item: Mystic Water (20%)
+Lotad [11.1%], Item: Mental Herb (20%)
+Magikarp [25.9%]
+**Fishing (Good Rod)**
+Barboach [40%]
+Gyarados [20%]
+Magikarp [30%]
+Whiscash [10%]
+## Route 3
+**Wild Grass**
+Abra [6.5%], Item: TwistedSpoon (20%)
+Electrike [13.0%]
+Mareep [13.0%]
+Nincada [6.5%], Item: Soft Sand (20%)
+Pachirisu [2.6%]
+Pawmi [13.0%]
+Poochyena [13.0%]
+Shinx [13.0%]
+Toedscool [13.0%]
+Voltorb-Hisuian [3.2%]
+Yamper [3.2%]
+## Route 4
+**Wild Grass**
+Mareep [15.4%]
+Marill [7.7%]
+Pidgey [19.2%]
+Shinx [15.4%]
+Skiddo [7.7%]
+Stunky [11.5%]
+Tadbulb [7.7%]
+Wattrel [7.7%]
+Yamper [7.7%]
+## Route 5
+**Wild Grass**
+Girafarig [3.6%]
+Hippopotas [10.7%]
+Litleo [14.3%]
+Patrat [17.9%]
+Phanpy [14.3%]
+Rolycoly [14.3%]
+Tandemaus [10.7%]
+## Route 6
+**Wild Grass**
+Blitzle [13.8%]
+Growlithe-Hisuian [10.3%]
+Litleo [13.8%]
+Ponyta [10.3%]
+Rhyhorn [6.9%]
+Rolycoly [10.3%]
+Sizzlipede [13.8%], Day only
+Zubat [20.7%], Night only
+## Route 7
+**Fishing (Old Rod)**
+Corphish [7.7%]
+Magikarp [61.5%]
+Tympole [30.8%]
+**Wild Grass**
+Bidoof [14.3%]
+Gossifleur [7.1%]
+Hatenna [5%]
+Marill [10.7%]
+Poliwag [10.7%]
+Ralts [3.6%]
+Skitty [5.7%]
+Sunkern [8.6%]
+Surskit [7.1%], Item: Honey (2%)
+Wooper [10.7%]
+Wooper-Paldea [10.7%]
+Yanma [5.7%], Item: Wide Lens (20%)
+**Surfing**
+Bidoof [45.5%]
+Corphish [22.7%]
+Tympole [31.8%]
+**Fishing (Good Rod)**
+Corphish [35%]
+Magikarp [15%]
+Tympole [50%]
+## Route 8
+**Wild Grass**
+Bellsprout [12.3%]
+Buneary [7.7%]
+Clobbopus [3.7%]
+Espurr [7.7%]
+Falinks [10.7%]
+Fidough [7.7%]
+Herdier [4.6%]
+Lillipup [10.7%]
+Oddish [12.3%], Item: Absorb Bulb (20%)
+Riolu [1.2%]
+Staravia [4.6%]
+Starly [10.7%]
+Swablu [6.1%]
+## Route 9
+**Pine Tree**
+Heracross [6.2%], Night only
+Kakuna [12.5%]
+Metapod [12.5%]
+Pineco [37.5%]
+Pinsir [6.2%], Day only
+Spewpa [25%]
+**Wild Grass**
+Flapple [0.5%], Day only
+Kricketot [18.6%], Night only
+Paras [18.6%], Day only, Items: Big Mushroom (20%), Tiny Mushroom (2%)
+Rellor [13.3%]
+Roselia [2.7%], Day only
+Sewaddle [16.0%], Item: Mental Herb (20%)
+Shroomish [1.1%], Items: Big Mushroom (20%), Tiny Mushroom (2%)
+Smoliv [13.3%]
+Venipede [13.3%], Item: Poison Barb (20%)
+Venonat [2.7%], Night only
+## Spirit Forest
+**Wild Grass**
+Bellossom [7.8%]
+Bonsly [4.1%]
+Breloom [7.8%]
+Budew [13.0%]
+Carnivine [7.8%]
+Hoppip [13.0%]
+Lilligant [2.6%], Day only
+Roselia [7.8%]
+Sudowoodo [10.4%]
+Sunkern [13.0%]
+Venonat [13.0%]
+## Steam Chamber
+**Wild Grass**
+Camerupt [25.3%]
+Heatmor [21.5%]
+Larvesta [6.3%]
+Magcargo [12.7%]
+Magmar [12.7%], Item: Magmarizer (20%)
+Torkoal [21.5%], Item: Charcoal (20%)
+## Tinbell Tower
+**Wild Grass**
+Clobbopus [17.3%]
+Falinks [6.2%]
+Gurdurr [12.3%]
+Machoke [12.3%], Item: Focus Band (20%)
+Machop [24.7%], Item: Focus Band (20%)
+Timburr [21.0%]
+Tyrogue [6.2%]
+## Trade Resort
+**Surfing**
+Basculegion [20%], Item: DeepSeaTooth (20%)
+Gyarados [20%]
+Milotic [20%]
+Overqwil [20%]
+Sharpedo [20%]
+## Victory Road - Necrozma Branch
+**Wild Grass**
+Castform [20%]
+Cetitan [20%]
+Lycanroc-Dusk [10%], Day only
+Lycanroc-midday [10%], Day only
+Lycanroc-midnight [10%], Night only
+Pupitar [15%]
+Rhydon [15%]
+## Victory Road - Sector 1
+**Wild Grass**
+Aurorus [10%]
+Baxcalibur [10%]
+Bergmite [20%]
+Cetoddle [20%]
+Crabominable [10%]
+Glalie [15%]
+Piloswine [15%]
+## Victory Road - Sector 2
+**Wild Grass**
+Abomasnow [10%]
+Avalugg [20%]
+Cetitan [20%]
+Froslass [10%]
+Frosmoth [15%]
+Mamoswine [15%]
+Weavile [10%]
+## Victory Road - Sector 3
+**Wild Grass**
+Aerodactyl [10%]
+Cradily [10%]
+Druddigon [20%]
+Kabutops [15%]
+Omastar [15%]
+Tinkaton [10%]
+Zweilous [20%]
+## Victory Road - Sector 3
+**Wild Grass**
+Aerodactyl [10%]
+Cradily [10%]
+Druddigon [20%]
+Kabutops [15%]
+Omastar [15%]
+Tinkaton [10%]
+Zweilous [20%]
+## Victory Road - Sector 4
+**Wild Grass**
+Beartic [20%]
+Delibird [20%]
+Glaceon [10%]
+Jynx [15%]
+Ninetales-Alola [10%]
+Sandslash-Alola [10%]
+Vanilluxe [15%]
+## Voltridia Cavern
+**Wild Grass**
+Graveler-Alola [26.6%], Item: Cell Battery (20%)
+Joltik [31.2%]
+Nosepass [26.6%], Item: Magnet (20%)
+Stunfisk [15.6%], Item: Soft Sand (20%)
+Natu [22.5%]
+Sigilyph [11.2%]
+Zorua [2.2%]
+## Desert Catacombs
+**Wild Grass**
+Baltoy [28.1%], Item: Light Clay (5%)
+Darumaka [4.5%]
+
+Weather-specific encounters
+## Rain Weather
+Goomy [26.7%]
+Politoed [26.7%]
+Vaporeon [46.7%]
+## Wind Weather
+Rookidee [7.3%]
+Butterfree [56.1%]
+Emolga [18.3%]
+Pidgey [18.3%]
+## Meteor Weather
+Cleffa [8.5%]
+Clefairy [4.4%]
+Clefable [2.9%]
+Lunatone [5.3%]
+Solrock [5.3%]
+Elgyem [8.5%]
+Beheeyem [4.4%]
+Jigglypuff [8.5%]
+Igglybuff [8.5%]
+Minior [43.9%]
+## Fog Weather
+Gastly [11.4%]
+Grimer [22.7%]
+Goomy [13.6%]
+Gloom [22.7%]
+Haunter [13.6%]
+Gengar [15.9%]
+## Snow Weather
+Zorua [4.3%]
+Cubchoo [35.7%]
+Beartic [10.7%]
+Vanillish [35.7%]
+Vanilluxe [13.6%]
+## Thunder Weather
+Electrike [29.4%]
+Emolga [1.2%]
+Jolteon [29.4%]
+Raichu [40%]
+## Smog Weather
+Gloom [29.4%]
+Koffing [1.2%]
+Weezing [29.4%]
+Venomoth [40%]

@@ -1,0 +1,595 @@
+1	Bulbasaur	Ivysaur	Venusaur
+2	Charmander	Charmeleon	Charizard
+3	Squirtle	Wartortle	Blastoise
+4	Caterpie	Metapod	Butterfree
+5	Weedle	Kakuna	Beedrill
+6	Pidgey	Pidgeotto	Pidgeot
+7	Rattata	Raticate	
+8	Spearow	Fearow	
+9	Ekans	Arbok	
+10	Pichu	Pikachu	Raichu
+11	Sandshrew	Sandslash	
+12	Nidoran♀	Nidorina	Nidoqueen
+13	Nidoran♂	Nidorino	Nidoking
+14	Cleffa	Clefairy	Clefable
+15	Vulpix	Ninetales	
+16	Igglybuff	Jigglypuff	Wigglytuff
+17	Zubat	Golbat	Crobat
+18	Oddish	Gloom	Vileplume	Bellossom
+19	Paras	Parasect	
+20	Venonat	Venomoth	
+21	Diglett	Dugtrio	
+22	Meowth	Persian	Perrserker	
+23	Psyduck	Golduck	
+24	Mankey	Primeape	Annihilape
+25	Growlithe	Arcanine	
+26	Poliwag	Poliwhirl	Poliwrath
+Politoed
+27	Abra	Kadabra	Alakazam
+28	Machop	Machoke	Machamp
+29	Bellsprout	Weepinbell	Victreebel
+30	Tentacool	Tentacruel	
+31	Geodude	Graveler	Golem
+32	Ponyta	Rapidash	
+33	Slowpoke	Slowbro
+Slowking	
+34	Magnemite	Magneton	Magnezone
+35	Farfetch'd	Sirfetch'd	
+36	Doduo	Dodrio	
+37	Seel	Dewgong	
+38	Grimer	Muk	
+39	Shellder	Cloyster	
+40	Gastly	Haunter	Gengar
+41	Onix	Steelix	
+42	Drowzee	Hypno	
+43	Krabby	Kingler	
+44	Voltorb	Electrode	
+45	Exeggcute	Exeggutor	
+46	Cubone	Marowak	
+47	Tyrogue	Hitmonlee
+Hitmonchan
+Hitmontop	
+48	Lickitung	Lickilicky	
+49	Koffing	Weezing	
+50	Rhyhorn	Rhydon	Rhyperior
+51	Happiny	Chansey	Blissey
+52	Tangela	Tangrowth	
+53	Kangaskhan		
+54	Horsea	Seadra	Kingdra
+55	Goldeen	Seaking	
+56	Staryu	Starmie	
+57	Mime Jr.	Mr. Mime	Mr. Rime
+58	Scyther	Scizor
+Kleavor	
+59	Smoochum	Jynx	
+60	Elekid	Electabuzz	Electivire
+61	Magby	Magmar	Magmortar
+62	Pinsir		
+63	Tauros		
+64	Magikarp	Gyarados	
+65	Lapras		
+66	Ditto		
+67	Eevee	
+
+Vaporeon
+Jolteon
+Flareon
+Espeon
+Umbreon
+Leafeon
+Glaceon
+Sylveon
+
+	
+68	Porygon	Porygon2	Porygon-Z
+69	Omanyte	Omastar	
+70	Kabuto	Kabutops	
+71	Aerodactyl		
+72	Munchlax	Snorlax	
+73	Articuno		
+74	Zapdos		
+75	Moltres		
+76	Dratini	Dragonair	Dragonite
+77	Mewtwo		
+78	Mew		
+Johto
+Evolution
+	Unevolved Pokémon/Basic Pokémon	First-Evolved Pokémon/Stage 1 Pokémon	Second-Evolved/Stage 2
+79	Chikorita	Bayleef	Meganium
+80	Cyndaquil	Quilava	Typhlosion
+81	Totodile	Croconaw	Feraligatr
+82	Sentret	
+
+Furret
+
+	
+83	Hoothoot	Noctowl	
+84	Ledyba	Ledian	
+85	Spinarak	Ariados	
+86	Chinchou	Lanturn	
+87	Togepi	Togetic	Togekiss
+88	Natu	Xatu	
+89	Mareep	Flaaffy	Ampharos
+90	Azurill	Marill	Azumarill
+91	Bonsly	Sudowoodo	
+92	Hoppip	Skiploom	Jumpluff
+93	Aipom	Ambipom	
+94	Sunkern	Sunflora	
+95	Yanma	Yanmega	
+96	Wooper	Quagsire
+Clodsire	
+97	Murkrow	Honchkrow	
+98	Misdreavus	Mismagius	
+99	Unown		
+100	Wynaut	Wobbuffet	
+101	Girafarig	Farigiraf	
+102	Pineco	Forretress	
+103	Dunsparce	Dudunsparce	
+104	Gligar	Gliscor	
+105	Snubbull	Granbull	
+106	Qwilfish	Overqwil	
+107	Shuckle		
+108	Heracross		
+109	Sneasel	Weavile
+Sneasler	
+110	Teddiursa	Ursaring	Ursaluna
+111	Slugma	Magcargo	
+112	Swinub	Piloswine	Mamoswine
+113	Corsola	Cursola	
+114	Remoraid	Octillery	
+115	Delibird		
+116	Mantyke	Mantine	
+117	Skarmory		
+118	Houndour	Houndoom	
+119	Phanpy	Donphan	
+120	Stantler	Wyrdeer	
+121	Smeargle		
+122	Miltank		
+123	Raikou		
+124	Entei		
+125	Suicune		
+126	Larvitar	Pupitar	Tyranitar
+127	Lugia		
+128	Ho-Oh		
+129	Celebi		
+Hoenn
+Evolution
+	Unevolved Pokémon/Basic Pokémon	First-Evolved Pokémon/Stage 1 Pokémon	Second-Evolved/Stage 2
+130	Treecko	Grovyle	Sceptile
+131	Torchic	Combusken	Blaziken
+132	Mudkip	Marshtomp	Swampert
+133	Poochyena	Mightyena	
+134	Zigzagoon	Linoone	Obstagoon
+135	Wurmple	Silcoon	Cascoon	Beautifly	Dustox
+136	Lotad	Lombre	Ludicolo
+137	Seedot	Nuzleaf	Shiftry
+138	Taillow	Swellow	
+139	Wingull	Pelipper	
+140	Ralts	Kirlia	Gardevoir
+Gallade
+141	Surskit	Masquerain	
+142	Shroomish	Breloom	
+143	Slakoth	Vigoroth	Slaking
+144	Nincada	Ninjask
+Shedinja	
+145	Whismur	Loudred	Exploud
+146	Makuhita	Hariyama	
+147	Nosepass	Probopass	
+148	Skitty	Delcatty	
+149	Sableye		
+150	Mawile		
+151	Aron	Lairon	Aggron
+152	Meditite	Medicham	
+153	Electrike	Manectric	
+154	Plusle		
+155	Minun		
+156	Volbeat		
+157	Illumise		
+158	Budew	Roselia	Roserade
+159	Gulpin	Swalot	
+160	Carvanha	Sharpedo	
+161	Wailmer	Wailord	
+162	Numel	Camerupt	
+163	Torkoal		
+164	Spoink	Grumpig	
+165	Spinda		
+166	Trapinch	Vibrava	Flygon
+167	Cacnea	Cacturne	
+168	Swablu	Altaria	
+169	Zangoose		
+170	Seviper		
+171	Lunatone		
+172	Solrock		
+173	Barboach	Whiscash	
+174	Corphish	Crawdaunt	
+175	Baltoy	Claydol	
+176	Lileep	Cradily	
+177	Anorith	Armaldo	
+178	Feebas	Milotic	
+179	Castform		
+180	Kecleon		
+181	Shuppet	Banette	
+182	Duskull	Dusclops	Dusknoir
+183	Tropius		
+184	Chingling	Chimecho	
+185	Absol		
+186	Snorunt	Glalie
+Froslass	
+187	Spheal	Sealeo	Walrein
+188	Clamperl	Huntail
+Gorebyss	
+189	Relicanth		
+190	Luvdisc		
+191	Bagon	Shelgon	Salamence
+192	Beldum	Metang	Metagross
+193	Regirock		
+194	Regice		
+195	Registeel		
+196	Latias		
+197	Latios		
+198	Kyogre		
+199	Groudon		
+200	Rayquaza		
+201	Jirachi		
+202	Deoxys		
+Sinnoh
+Evolution
+	Unevolved Pokémon/Basic Pokémon	First-Evolved Pokémon/Stage 1 Pokémon	Second-Evolved/Stage 2
+203	Turtwig	Grotle	Torterra
+204	Chimchar	Monferno	Infernape
+205	Piplup	Prinplup	Empoleon
+206	Starly	Staravia	Staraptor
+207	Bidoof	Bibarel	
+208	Kricketot	Kricketune	
+209	Shinx	Luxio	Luxray
+210	Cranidos	Rampardos	
+211	Shieldon	Bastiodon	
+212	Burmy	Wormadam
+Mothim	
+213	Combee	Vespiquen	
+214	Pachirisu		
+215	Buizel	Floatzel	
+216	Cherubi	Cherrim	
+217	Shellos	Gastrodon	
+218	Drifloon	Drifblim	
+219	Buneary	Lopunny	
+220	Glameow	Purugly	
+221	Stunky	Skuntank	
+222	Bronzor	Bronzong	
+223	Chatot		
+224	Spiritomb		
+225	Gible	Gabite	Garchomp
+226	Riolu	Lucario	
+227	Hippopotas	Hippowdon	
+228	Skorupi	Drapion	
+229	Croagunk	Toxicroak	
+230	Carnivine		
+231	Finneon	Lumineon	
+232	Snover	Abomasnow	
+233	Rotom		
+234	Uxie		
+235	Mesprit		
+236	Azelf		
+237	Dialga		
+238	Palkia		
+239	Heatran		
+240	Regigigas		
+241	Giratina		
+242	Cresselia		
+243	Phione		
+244	Manaphy		
+245	Darkrai		
+246	Shaymin		
+247	Arceus		
+Unova
+Evolution
+	Unevolved Pokémon/Basic Pokémon	First-Evolved Pokémon/Stage 1 Pokémon	Second-Evolved/Stage 2
+248	Victini		
+249	Snivy	Servine	Serperior
+250	Tepig	Pignite	Emboar
+251	Oshawott	Dewott	Samurott
+252	Patrat	Watchog	
+253	Lillipup	Herdier	Stoutland
+254	Purrloin	Liepard	
+255	Pansage	Simisage	
+256	Pansear	Simisear	
+257	Panpour	Simipour	
+258	Munna	Musharna	
+259	Pidove	Tranquill	Unfezant
+260	Blitzle	Zebstrika	
+261	Roggenrola	Boldore	Gigalith
+262	Woobat	Swoobat	
+263	Drilbur	Excadrill	
+264	Audino		
+265	Timburr	Gurdurr	Conkeldurr
+266	Tympole	Palpitoad	Seismitoad
+267	Throh		
+268	Sawk		
+269	Sewaddle	Swadloon	Leavanny
+270	Venipede	Whirlipede	Scolipede
+271	Cottonee	Whimsicott	
+272	Petilil	Lilligant	
+273	Basculin	Basculegion	
+274	Sandile	Krokorok	Krookodile
+275	Darumaka	Darmanitan	
+276	Maractus		
+277	Dwebble	Crustle	
+278	Scraggy	Scrafty	
+279	Sigilyph		
+280	Yamask	Cofagrigus
+Runerigus	
+281	Tirtouga	Carracosta	
+282	Archen	Archeops	
+283	Trubbish	Garbodor	
+284	Zorua	Zoroark	
+285	Minccino	Cinccino	
+286	Gothita	Gothorita	Gothitelle
+287	Solosis	Duosion	Reuniclus
+288	Ducklett	Swanna	
+289	Vanillite	Vanillish	Vanilluxe
+290	Deerling	Sawsbuck	
+291	Emolga		
+292	Karrablast	Escavalier	
+293	Foongus	Amoonguss	
+294	Frillish	Jellicent	
+295	Alomomola		
+296	Joltik	Galvantula	
+297	Ferroseed	Ferrothorn	
+298	Klink	Klang	Klinklang
+299	Tynamo	Eelektrik	Eelektross
+300	Elgyem	Beheeyem	
+301	Litwick	Lampent	Chandelure
+302	Axew	Fraxure	Haxorus
+303	Cubchoo	Beartic	
+304	Cryogonal		
+305	Shelmet	Accelgor	
+306	Stunfisk		
+307	Mienfoo	Mienshao	
+308	Druddigon		
+309	Golett	Golurk	
+310	Pawniard	Bisharp	Kingambit
+311	Bouffalant		
+312	Rufflet	Braviary	
+313	Vullaby	Mandibuzz	
+314	Heatmor		
+315	Durant		
+316	Deino	Zweilous	Hydreigon
+317	Larvesta	Volcarona	
+318	Cobalion		
+319	Terrakion		
+320	Virizion		
+321	Tornadus		
+322	Thundurus		
+323	Reshiram		
+324	Zekrom		
+325	Landorus		
+326	Kyurem		
+327	Keldeo		
+328	Meloetta		
+329	Genesect		
+Kalos
+Evolution
+	Unevolved Pokémon/Basic Pokémon	First-Evolved Pokémon/Stage 1 Pokémon	Second-Evolved/Stage 2
+330	Chespin	Quilladin	Chesnaught
+331	Fennekin	Braixen	Delphox
+332	Froakie	Frogadier	Greninja
+333	Bunnelby	Diggersby	
+334	Fletchling	Fletchinder	Talonflame
+335	Scatterbug	Spewpa	Vivillon
+336	Litleo	Pyroar	
+337	Flabébé	Floette	Florges
+338	Skiddo	Gogoat	
+339	Pancham	Pangoro	
+340	Furfrou		
+341	Espurr	Meowstic	
+342	Honedge	Doublade	Aegislash
+343	Spritzee	Aromatisse	
+344	Swirlix	Slurpuff	
+345	Inkay	Malamar	
+346	Binacle	Barbaracle	
+347	Skrelp	Dragalge	
+348	Clauncher	Clawitzer	
+349	Helioptile	Heliolisk	
+350	Tyrunt	Tyrantrum	
+351	Amaura	Aurorus	
+352	Hawlucha		
+353	Dedenne		
+354	Carbink		
+355	Goomy	Sliggoo	Goodra
+356	Klefki		
+357	Phantump	Trevenant	
+358	Pumpkaboo	Gourgeist	
+359	Bergmite	Avalugg	
+360	Noibat	Noivern	
+361	Xerneas		
+362	Yveltal		
+363	Zygarde		
+364	Diancie		
+365	Hoopa		
+366	Volcanion		
+Alola
+Evolution
+	Unevolved Pokémon/Basic Pokémon	First-Evolved Pokémon/Stage 1 Pokémon	Second-Evolved/Stage 2
+367	Rowlet	Dartrix	Decidueye
+368	Litten	Torracat	Incineroar
+369	Popplio	Brionne	Primarina
+370	Pikipek	Trumbeak	Toucannon
+371	Yungoos	Gumshoos	
+372	Grubbin	Charjabug	Vikavolt
+373	Crabrawler	Crabominable	
+374	Oricorio		
+375	Cutiefly	Ribombee	
+376	Rockruff	Lycanroc	
+377	Wishiwashi		
+378	Mareanie	Toxapex	
+379	Mudbray	Mudsdale	
+380	Dewpider	Araquanid	
+381	Fomantis	Lurantis	
+382	Morelull	Shiinotic	
+383	Salandit	Salazzle	
+384	Stufful	Bewear	
+385	Bounsweet	Steenee	Tsareena
+386	Comfey		
+387	Oranguru		
+388	Passimian		
+389	Wimpod	Golisopod	
+390	Sandygast	Palossand	
+391	Pyukumuku		
+392	Type: Null	Silvally	
+393	Minior		
+394	Komala		
+395	Turtonator		
+396	Togedemaru		
+397	Mimikyu		
+398	Bruxish		
+399	Drampa		
+400	Dhelmise		
+401	Jangmo-o	Hakamo-o	Kommo-o
+402	Tapu Koko		
+403	Tapu Lele		
+404	Tapu Bulu		
+405	Tapu Fini		
+406	Cosmog	Cosmoem	Solgaleo
+Lunala
+407	Nihilego		
+408	Buzzwole		
+409	Pheromosa		
+410	Xurkitree		
+411	Celesteela		
+412	Kartana		
+413	Guzzlord		
+414	Necrozma		
+415	Magearna		
+416	Marshadow		
+417	Poipole	Naganadel	
+418	Stakataka		
+419	Blacephalon		
+420	Zeraora		
+421	Meltan	Melmetal		
+Galar
+Evolution
+	Unevolved Pokémon/Basic Pokémon	First-Evolved Pokémon/Stage 1 Pokémon	Second-Evolved/Stage 2
+422	Grookey	Thwackey	Rillaboom
+423	Scorbunny	Raboot	Cinderace
+424	Sobble	Drizzile	Inteleon
+425	Skwovet	Greedent	
+426	Rookidee	Corvisquire	Corviknight
+427	Blipbug	Dottler	Orbeetle
+428	Nickit	Thievul	
+429	Gossifleur	Eldegoss	
+430	Wooloo	Dubwool	
+431	Chewtle	Drednaw	
+432	Yamper	Boltund	
+433	Rolycoly	Carkol	Coalossal
+434	Applin	Flapple	Appletun	Dipplin	Hydrapple
+435	Silicobra	Sandaconda	
+436	Cramorant		
+437	Arrokuda	Barraskewda	
+438	Toxel	Toxtricity	
+439	Sizzlipede	Centiskorch	
+440	Clobbopus	Grapploct	
+441	Sinistea	Polteageist	
+442	Hatenna	Hattrem	Hatterene
+443	Impidimp	Morgrem	Grimmsnarl
+444	Milcery	Alcremie	
+445	Falinks		
+446	Pincurchin		
+447	Snom	Frosmoth	
+448	Stonjourner		
+449	Eiscue		
+450	Indeedee		
+451	Morpeko		
+452	Cufant	Copperajah	
+453	Dracozolt		
+454	Arctozolt		
+455	Dracovish		
+456	Arctovish		
+457	Duraludon	Archaludon	
+458	Dreepy	Drakloak	Dragapult
+459	Zacian		
+460	Zamazenta		
+461	Eternatus		
+462	Kubfu	Urshifu	
+463	Zarude		
+464	Regieleki		
+465	Regidrago		
+466	Glastrier		
+467	Spectrier		
+468	Calyrex		
+469	Enamorus		
+Paldea
+Evolution
+	Unevolved Pokémon/Basic Pokémon	First-Evolved Pokémon/Stage 1 Pokémon	Second-Evolved/Stage 2
+470	Sprigatito	Floragato	Meowscarada
+471	Fuecoco	Crocalor	Skeledirge
+472	Quaxly	Quaxwell	Quaquaval
+473	Lechonk	Oinkologne	
+474	Tarountula	Spidops	
+475	Nymble	Lokix	
+476	Pawmi	Pawmo	Pawmot
+477	Tandemaus	Maushold	
+478	Fidough	Dachsbun	
+479	Smoliv	Dolliv	Arboliva
+480	Squawkabilly		
+481	Nacli	Naclstack	Garganacl
+482	Charcadet	Armarouge
+Ceruledge	
+483	Tadbulb	Bellibolt	
+484	Wattrel	Kilowattrel	
+485	Maschiff	Mabosstiff	
+486	Shroodle	Grafaiai	
+487	Bramblin	Brambleghast	
+488	Toedscool	Toedscruel	
+489	Klawf		
+490	Capsakid	Scovillain	
+491	Rellor	Rabsca	
+492	Flittle	Espathra	
+493	Tinkatink	Tinkatuff	Tinkaton
+494	Wiglett	Wugtrio	
+495	Bombirdier		
+496	Finizen	Palafin	
+497	Varoom	Revavroom	
+498	Cyclizar		
+499	Orthworm		
+500	Glimmet	Glimmora	
+501	Greavard	Houndstone	
+502	Flamigo		
+503	Cetoddle	Cetitan	
+504	Veluza		
+505	Dondozo		
+506	Tatsugiri		
+507	Great Tusk		
+508	Scream Tail		
+509	Brute Bonnet		
+510	Flutter Mane		
+511	Slither Wing		
+512	Sandy Shocks		
+513	Iron Treads		
+514	Iron Bundle		
+515	Iron Hands		
+516	Iron Jugulis		
+517	Iron Moth		
+518	Iron Thorns		
+519	Frigibax	Arctibax	Baxcalibur
+520	Gimmighoul	Gholdengo	
+521	Wo-Chien		
+522	Chien-Pao		
+523	Ting-Lu		
+524	Chi-Yu		
+525	Roaring Moon		
+526	Iron Valiant		
+527	Koraidon		
+528	Miraidon		
+529	Walking Wake		
+530	Iron Leaves		
+531	Poltchageist	Sinistcha	
+532	Okidogi		
+533	Munkidori		
+534	Fezandipiti		
+535	Ogerpon		
+536	Gouging Fire		
+537	Raging Bolt		
+538	Iron Boulder		
+539	Iron Crown		
+540	Terapagos		
+541	Pecharunt		

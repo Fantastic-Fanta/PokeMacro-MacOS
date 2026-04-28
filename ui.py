@@ -30,7 +30,10 @@ from AppKit import (
     NSLineBreakByTruncatingTail,
     NSMenu, NSMenuItem,
     NSNoTabsNoBorder, NSOffState, NSOnState,
+    NSFilenamesPboardType,
+    NSOpenPanel,
     NSPasteboard, NSStringPboardType,
+    NSSavePanel,
     NSPopUpButton, NSScrollView, NSSecureTextField,
     NSStackView, NSStackViewDistributionFill, NSStackViewGravityTop,
     NSTableCellView, NSTableColumn, NSTableColumnNoResizing,
@@ -99,6 +102,7 @@ SIDEBAR_ITEMS = [
     ("General",   "gearshape"),
     ("Wishlist",  "star.fill"),
     ("Positions", "mappin.and.ellipse"),
+    ("Dex",       "list.number"),
     ("Logs",      "doc.text"),
     ("Debug",     "ladybug"),
 ]
@@ -131,6 +135,18 @@ def _init_colors() -> None:
 class _FlippedView(NSView):
     def isFlipped(self) -> bool:
         return True
+
+
+# ── Click-through content view ─────────────────────────────────────────
+class _ClickThroughView(NSView):
+    @objc.python_method
+    def set_click_through(self, enabled: bool) -> None:
+        self._click_through = bool(enabled)
+
+    def hitTest_(self, point):
+        if getattr(self, '_click_through', False):
+            return None
+        return objc.super(_ClickThroughView, self).hitTest_(point)
 
 
 # ── Card view (dark-mode adaptive bordered box) ────────────────────────
@@ -441,6 +457,12 @@ class ConfigManager:
             "SpriteRegion":        {"LeftCorner": [0, 0], "RightCorner": [0, 0]},
             "DiscordBotToken": "",
             "ServerID": 0,
+            "DexScanner": {
+                "Rows": 23,
+                "Cols": 33,
+                "SampleOffset": [10, 10],
+                "OutputFile": "missing-poopimons.txt",
+            },
         }
 
 
@@ -508,6 +530,31 @@ class _AdaptiveWishTextView(NSTextView):
         self.setDrawsBackground_(True)
         self.setBackgroundColor_(NSColor.textBackgroundColor())
         self.setTextColor_(NSColor.textColor())
+
+
+# ── Drag-and-drop path field ───────────────────────────────────────────
+class _DropPathField(NSTextField):
+    def initWithFrame_(self, frame):
+        self = objc.super(_DropPathField, self).initWithFrame_(frame)
+        if self is not None:
+            self.registerForDraggedTypes_([NSFilenamesPboardType])
+        return self
+
+    def draggingEntered_(self, sender):
+        return 1  # NSDragOperationCopy
+
+    def draggingUpdated_(self, sender):
+        return 1
+
+    def prepareForDragOperation_(self, sender):
+        return True
+
+    def performDragOperation_(self, sender):
+        files = sender.draggingPasteboard().propertyListForType_(NSFilenamesPboardType)
+        if files:
+            self.setStringValue_(str(files[0]))
+            return True
+        return False
 
 
 # ── Sidebar table data source / delegate ───────────────────────────────
@@ -584,6 +631,9 @@ class PokeMacroController(NSObject):
         self._debug_ocr        = None
         self._debug_ss_mtime   = 0.0
         self._debug_ocr_mtime  = 0.0
+        self._dex_p1_field     = None
+        self._dex_p2_field     = None
+        self._dex_tv           = None
 
         self._build_content_panels()
         self._build_window()
@@ -600,6 +650,7 @@ class PokeMacroController(NSObject):
             ("General",   self._tab_general),
             ("Wishlist",  self._tab_wishlist),
             ("Positions", self._tab_positions),
+            ("Dex",       self._tab_dex),
             ("Logs",      self._tab_logs),
             ("Debug",     self._tab_debug),
         ]:
@@ -633,7 +684,11 @@ class PokeMacroController(NSObject):
         self._window.setLevel_(3)  # NSFloatingWindowLevel — always on top
         self._build_toolbar()
         self._window.setToolbar_(self._toolbar)
-        self._window.setContentView_(self._build_split_view())
+        split = self._build_split_view()
+        self._ct_view = _ClickThroughView.alloc().init()
+        self._ct_view.addSubview_(split)
+        _UI.pin_edges(split, self._ct_view)
+        self._window.setContentView_(self._ct_view)
         guide = self._window.contentLayoutGuide()
         self._sidebar_sv.topAnchor().constraintEqualToAnchor_(guide.topAnchor()).setActive_(True)
         self._tab.topAnchor().constraintEqualToAnchor_(guide.topAnchor()).setActive_(True)
@@ -983,6 +1038,247 @@ class PokeMacroController(NSObject):
             _UI.add_card(outer, reg)
 
         return _UI.tab_scroll(outer)
+
+    # ── Dex tab ────────────────────────────────────────────────────
+    @objc.python_method
+    def _tab_dex(self) -> NSView:
+        w   = NSView.alloc().init()
+        pad = UI_PAD
+        H, V = 12.0, 10.0
+
+        # ── Screenshots card ──────────────────────────────────────
+        ss_sec = _UI.v_stack(spacing=8.0)
+        ss_sec.addView_inGravity_(
+            _UI.label("Screenshots", size=11.0, color=NSColor.secondaryLabelColor()),
+            NSStackViewGravityTop,
+        )
+
+        def _drop_row(label_text: str, default_name: str) -> tuple:
+            f = _DropPathField.alloc().initWithFrame_(NSMakeRect(0, 0, 200, 22))
+            f.setBezeled_(True)
+            f.setStringValue_(str(PROJECT_ROOT / default_name))
+            f.cell().setScrollable_(True)
+            f.cell().setLineBreakMode_(NSLineBreakByTruncatingTail)
+            browse_btn = _UI.button("Browse", self,
+                                    b"dexBrowsePage1:" if "1" in label_text else b"dexBrowsePage2:")
+            row = _UI.h_stack(spacing=8.0)
+            row.setDistribution_(NSStackViewDistributionFill)
+            la = _UI.label(label_text)
+            la.setTranslatesAutoresizingMaskIntoConstraints_(False)
+            la.widthAnchor().constraintEqualToConstant_(LABEL_W).setActive_(True)
+            row.addView_inGravity_(la,         NSStackViewGravityTop)
+            row.addView_inGravity_(f,          NSStackViewGravityTop)
+            row.addView_inGravity_(browse_btn, NSStackViewGravityTop)
+            return f, row
+
+        self._dex_p1_field, p1_row = _drop_row("Page 1", "dex_screenshot.png")
+        self._dex_p2_field, p2_row = _drop_row("Page 2", "dex_screenshot2.png")
+        ss_sec.addView_inGravity_(p1_row, NSStackViewGravityTop)
+        ss_sec.addView_inGravity_(p2_row, NSStackViewGravityTop)
+
+        scan_row = _UI.h_stack(spacing=8.0)
+        scan_row.addView_inGravity_(_UI.spacer_h(), NSStackViewGravityTop)
+        scan_row.addView_inGravity_(_UI.button("Scan", self, b"dexRunScan:"), NSStackViewGravityTop)
+        ss_sec.addView_inGravity_(scan_row, NSStackViewGravityTop)
+
+        ss_card = _UI.box(ss_sec)
+        ss_card.setTranslatesAutoresizingMaskIntoConstraints_(False)
+
+        # ── Output card ───────────────────────────────────────────
+        out_hdr = _UI.h_stack(spacing=6.0)
+        out_hdr.addView_inGravity_(
+            _UI.label("Output", size=11.0, color=NSColor.secondaryLabelColor()),
+            NSStackViewGravityTop,
+        )
+        out_hdr.addView_inGravity_(_UI.spacer_h(), NSStackViewGravityTop)
+        out_hdr.addView_inGravity_(_UI.button("Export", self, b"dexExport:"),       NSStackViewGravityTop)
+        out_hdr.addView_inGravity_(_UI.button("Copy",   self, b"dexCopyOutput:"),   NSStackViewGravityTop)
+        out_hdr.addView_inGravity_(_UI.button("Clear",  self, b"dexClearOutput:"),  NSStackViewGravityTop)
+        out_hdr.setTranslatesAutoresizingMaskIntoConstraints_(False)
+
+        self._dex_tv = _AdaptiveLogTextView.alloc().init()
+        self._dex_tv.setEditable_(False)
+        self._dex_tv.setSelectable_(True)
+        self._dex_tv.setFont_(_UI.mono_font(11.0))
+        self._dex_tv.setTextContainerInset_((6, 6))
+        self._dex_tv._apply()
+
+        dex_sc = NSScrollView.alloc().init()
+        dex_sc.setDocumentView_(self._dex_tv)
+        dex_sc.setHasVerticalScroller_(True)
+        dex_sc.setAutohidesScrollers_(True)
+        dex_sc.setBorderType_(0)
+        dex_sc.setDrawsBackground_(True)
+        dex_sc.setWantsLayer_(True)
+        dex_sc.layer().setCornerRadius_(6.0)
+        dex_sc.layer().setMasksToBounds_(True)
+        dex_sc.layer().setBorderWidth_(1.0)
+        import warnings
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            dex_sc.layer().setBorderColor_(NSColor.separatorColor().CGColor())
+        dex_sc.setTranslatesAutoresizingMaskIntoConstraints_(False)
+
+        out_card = _CardView.alloc().init()
+        out_card.setWantsLayer_(True)
+        out_card.setTranslatesAutoresizingMaskIntoConstraints_(False)
+        out_card._refresh()
+        lyr = out_card.layer()
+        if lyr is not None:
+            lyr.setCornerRadius_(8.0)
+            lyr.setBorderWidth_(1.0)
+        out_card.addSubview_(out_hdr)
+        out_card.addSubview_(dex_sc)
+        out_hdr.topAnchor().constraintEqualToAnchor_constant_(out_card.topAnchor(), V).setActive_(True)
+        out_hdr.leadingAnchor().constraintEqualToAnchor_constant_(out_card.leadingAnchor(), H).setActive_(True)
+        out_hdr.trailingAnchor().constraintEqualToAnchor_constant_(out_card.trailingAnchor(), -H).setActive_(True)
+        dex_sc.topAnchor().constraintEqualToAnchor_constant_(out_hdr.bottomAnchor(), 8.0).setActive_(True)
+        dex_sc.leadingAnchor().constraintEqualToAnchor_constant_(out_card.leadingAnchor(), H).setActive_(True)
+        dex_sc.trailingAnchor().constraintEqualToAnchor_constant_(out_card.trailingAnchor(), -H).setActive_(True)
+        dex_sc.bottomAnchor().constraintEqualToAnchor_constant_(out_card.bottomAnchor(), -V).setActive_(True)
+
+        # ── Layout ────────────────────────────────────────────────
+        w.addSubview_(ss_card)
+        w.addSubview_(out_card)
+
+        ss_card.topAnchor().constraintEqualToAnchor_constant_(w.topAnchor(), pad).setActive_(True)
+        ss_card.leadingAnchor().constraintEqualToAnchor_constant_(w.leadingAnchor(), pad).setActive_(True)
+        ss_card.trailingAnchor().constraintEqualToAnchor_constant_(w.trailingAnchor(), -pad).setActive_(True)
+
+        out_card.topAnchor().constraintEqualToAnchor_constant_(ss_card.bottomAnchor(), 14.0).setActive_(True)
+        out_card.leadingAnchor().constraintEqualToAnchor_constant_(w.leadingAnchor(), pad).setActive_(True)
+        out_card.trailingAnchor().constraintEqualToAnchor_constant_(w.trailingAnchor(), -pad).setActive_(True)
+        out_card.bottomAnchor().constraintEqualToAnchor_constant_(w.bottomAnchor(), -pad).setActive_(True)
+
+        self._dex_reload_output()
+        return w
+
+    @objc.python_method
+    def _dex_set_output(self, text: str) -> None:
+        tv = self._dex_tv
+        if tv is None:
+            return
+        ts = tv.textStorage()
+        if ts is None:
+            return
+        ts.replaceCharactersInRange_withAttributedString_(
+            (0, int(ts.length())),
+            NSMutableAttributedString.alloc().initWithString_attributes_(
+                text,
+                {
+                    NSForegroundColorAttributeName: NSColor.secondaryLabelColor(),
+                    NSFontAttributeName: _UI.mono_font(11.0),
+                },
+            ),
+        )
+
+    @objc.python_method
+    def _dex_output_file(self) -> str:
+        return self._config.get("DexScanner", {}).get("OutputFile", "missing-poopimons.txt")
+
+    @objc.python_method
+    def _dex_reload_output(self) -> None:
+        out_path = PROJECT_ROOT / self._dex_output_file()
+        if out_path.exists():
+            try:
+                text = out_path.read_text(encoding="utf-8")
+            except Exception:
+                text = "(error reading output file)"
+            self._dex_set_output(text)
+
+    def dexBrowsePage1_(self, sender) -> None:
+        panel = NSOpenPanel.openPanel()
+        panel.setCanChooseFiles_(True)
+        panel.setCanChooseDirectories_(False)
+        panel.setAllowsMultipleSelection_(False)
+        panel.setAllowedFileTypes_(["png", "jpg", "jpeg"])
+        if int(panel.runModal()) == 1 and panel.URL():
+            self._dex_p1_field.setStringValue_(panel.URL().path())
+
+    def dexBrowsePage2_(self, sender) -> None:
+        panel = NSOpenPanel.openPanel()
+        panel.setCanChooseFiles_(True)
+        panel.setCanChooseDirectories_(False)
+        panel.setAllowsMultipleSelection_(False)
+        panel.setAllowedFileTypes_(["png", "jpg", "jpeg"])
+        if int(panel.runModal()) == 1 and panel.URL():
+            self._dex_p2_field.setStringValue_(panel.URL().path())
+
+    def dexRunScan_(self, sender) -> None:
+        p1 = str(self._dex_p1_field.stringValue() or "")
+        p2 = str(self._dex_p2_field.stringValue() or "")
+        self._config = self._gather()
+        out_file = self._dex_output_file()
+        self._config_manager.save(self._config)
+        self._dex_set_output("Scanning…\n")
+        me = self
+
+        def _run() -> None:
+            try:
+                proc = subprocess.Popen(
+                    [str(VENV_PYTHON), "-m", "dex.main", p1, p2, str(CONFIG_PATH)],
+                    cwd=str(PROJECT_ROOT),
+                    stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                    text=True, bufsize=1,
+                )
+                lines: list[str] = []
+                assert proc.stdout
+                for line in proc.stdout:
+                    lines.append(line.rstrip("\n"))
+                proc.wait()
+                code = int(proc.returncode or 0)
+                out_path = PROJECT_ROOT / out_file
+
+                def _apply() -> None:
+                    if code == 0 and out_path.exists():
+                        try:
+                            text = out_path.read_text(encoding="utf-8")
+                        except Exception as e:
+                            text = f"(error reading output: {e})"
+                        me._dex_set_output(text)
+                    else:
+                        me._dex_set_output("\n".join(lines) or f"Scan failed (exit {code})")
+
+                NSOperationQueue.mainQueue().addOperationWithBlock_(_apply)
+            except Exception as exc:
+                def _err() -> None:
+                    me._dex_set_output(f"Error: {exc}")
+                NSOperationQueue.mainQueue().addOperationWithBlock_(_err)
+
+        threading.Thread(target=_run, daemon=True).start()
+
+    def dexCopyOutput_(self, sender) -> None:
+        if self._dex_tv is None:
+            return
+        ts = self._dex_tv.textStorage()
+        t = (ts.string() or "") if ts else ""
+        pb = NSPasteboard.generalPasteboard()
+        pb.clearContents()
+        pb.setString_forType_(t, NSStringPboardType)
+
+    def dexClearOutput_(self, sender) -> None:
+        if self._dex_tv is None:
+            return
+        ts = self._dex_tv.textStorage()
+        if ts is not None and ts.length():
+            ts.deleteCharactersInRange_((0, int(ts.length())))
+
+    def dexExport_(self, sender) -> None:
+        if self._dex_tv is None:
+            return
+        ts = self._dex_tv.textStorage()
+        text = str((ts.string() or "") if ts else "")
+        panel = NSSavePanel.savePanel()
+        panel.setNameFieldStringValue_("missing.txt")
+        panel.setAllowedFileTypes_(["txt"])
+        if int(panel.runModal()) == 1 and panel.URL():
+            try:
+                Path(panel.URL().path()).write_text(text, encoding="utf-8")
+            except Exception as exc:
+                a = NSAlert.alloc().init()
+                a.setMessageText_("Export failed")
+                a.setInformativeText_(str(exc))
+                a.runModal()
 
     # ── Coordinate pick ────────────────────────────────────────────
     def pickCoord_(self, sender) -> None:
@@ -1411,6 +1707,7 @@ class PokeMacroController(NSObject):
         self._config = self._gather()
         self._config_manager.save(self._config)
         self._is_running = True
+        self._ct_view.set_click_through(True)
         if self._run_item is not None:
             img = _UI.sf("stop.fill", "Stop", size=16.0)
             self._run_item.setImage_(img)
@@ -1422,6 +1719,7 @@ class PokeMacroController(NSObject):
     @objc.python_method
     def _on_exit(self, code: int) -> None:
         self._is_running = False
+        self._ct_view.set_click_through(False)
         self._set_en(True)
         if self._run_item is not None:
             img = _UI.sf("play.fill", "Start", size=16.0)
@@ -1495,6 +1793,11 @@ class PokeMacroController(NSObject):
                 else str(self._stok.stringValue() or "")
             ),
             "ServerID": int(self._server.stringValue() or "0"),
+            "DexScanner": self._config.get("DexScanner", {
+                "Rows": 23, "Cols": 33,
+                "SampleOffset": [10, 10],
+                "OutputFile": "missing-poopimons.txt",
+            }),
         }
 
     @objc.python_method
