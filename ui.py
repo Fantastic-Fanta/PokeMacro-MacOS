@@ -70,6 +70,7 @@ from Foundation import (
     NSOperationQueue, NSTimer,
 )
 
+from src import __version__ as APP_VERSION
 from src.git_update import start_background_update
 from src.macro_config import get_config_path
 
@@ -804,6 +805,18 @@ class PokeMacroController(NSObject):
         self._ct_view = _ClickThroughView.alloc().init()
         self._ct_view.addSubview_(split)
         _UI.pin_edges(split, self._ct_view)
+
+        ver_lbl = _UI.label(f"v{APP_VERSION}", size=10.0, color=NSColor.whiteColor())
+        ver_lbl.setFont_(NSFont.systemFontOfSize_weight_(10.0, -0.2))
+        ver_lbl.setTranslatesAutoresizingMaskIntoConstraints_(False)
+        self._ct_view.addSubview_(ver_lbl)
+        ver_lbl.leadingAnchor().constraintEqualToAnchor_constant_(
+            self._ct_view.leadingAnchor(), 10.0
+        ).setActive_(True)
+        ver_lbl.bottomAnchor().constraintEqualToAnchor_constant_(
+            self._ct_view.bottomAnchor(), -8.0
+        ).setActive_(True)
+
         self._window.setContentView_(self._ct_view)
         guide = self._window.contentLayoutGuide()
         self._sidebar_sv.topAnchor().constraintEqualToAnchor_(guide.topAnchor()).setActive_(True)
