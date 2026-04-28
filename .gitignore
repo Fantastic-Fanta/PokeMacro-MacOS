@@ -1,3 +1,6 @@
+# Local machine config (Discord token, positions, etc.)
+configs.yaml
+
 history.log
 screenshot.png
 ENV/

@@ -3,6 +3,7 @@ PokeMacro — native AppKit (PyObjC) UI
 """
 from __future__ import annotations
 
+import os
 import queue
 import subprocess
 import sys
@@ -70,10 +71,12 @@ from Foundation import (
 )
 
 from src.git_update import start_background_update
+from src.macro_config import get_config_path
 
 # ── Project paths ──────────────────────────────────────────────────────
-PROJECT_ROOT = Path(__file__).resolve().parent
-CONFIG_PATH = PROJECT_ROOT / "configs.yaml"
+# Same path the macro subprocess uses (important when frozen / bundled).
+CONFIG_PATH = get_config_path()
+PROJECT_ROOT = CONFIG_PATH.parent
 _venv = PROJECT_ROOT / "ENV" / "bin" / "python"
 VENV_PYTHON = _venv if _venv.exists() else Path(sys.executable)
 
@@ -447,10 +450,13 @@ class SubprocessManager:
 
     def start(self, log_queue: queue.Queue, on_exit: Callable[[int], None]) -> None:
         self._proc = subprocess.Popen(
-            [str(VENV_PYTHON), "-m", "src.main"],
+            [str(VENV_PYTHON), "-u", "-m", "src.main"],
             cwd=str(PROJECT_ROOT),
-            stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-            text=True, bufsize=1,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            bufsize=1,
+            env={**os.environ, "PYTHONUNBUFFERED": "1"},
         )
         self._log_thread = threading.Thread(
             target=self._stream, args=(log_queue, on_exit), daemon=True

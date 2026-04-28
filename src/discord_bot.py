@@ -58,7 +58,7 @@ class DiscordBot:
 
         async def get_or_create_channel(channel_name: str) -> Optional[discord.TextChannel]:
             channel = discord.utils.get(guild.text_channels, name=channel_name)
-            if channel and channel.category_id == (category.id if category else None):
+            if channel is not None:
                 return channel
             try:
                 channel = await guild.create_text_channel(
@@ -228,13 +228,20 @@ class DiscordBot:
 
     def start(self):
         def run_bot():
-            self._loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(self._loop)
-            self._loop.run_until_complete(self.client.start(self.token))
+            try:
+                self._loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(self._loop)
+                self._loop.run_until_complete(self.client.start(self.token))
+            except BaseException:
+                import sys
+                import traceback
+
+                traceback.print_exc(file=sys.stderr)
+                sys.stderr.flush()
 
         self._thread = threading.Thread(target=run_bot, daemon=True)
         self._thread.start()
-        max_wait = 10
+        max_wait = 30
         waited = 0
         while (not self.confirmation_channel or not self.log_channel or not self.roam_channel) and waited < max_wait:
             time.sleep(0.5)
