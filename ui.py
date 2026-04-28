@@ -575,6 +575,7 @@ class PokeMacroController(NSObject):
         self._status_label     = None
         self._pick_map: dict   = {}
         self._pick_monitor     = None
+        self._pick_timer       = None
         self._pick_fields      = None
         self._pick_btn         = None
 
@@ -978,6 +979,9 @@ class PokeMacroController(NSObject):
     # ── Coordinate pick ────────────────────────────────────────────
     def pickCoord_(self, sender) -> None:
         # Cancel any in-progress pick first
+        if self._pick_timer is not None:
+            self._pick_timer.invalidate()
+            self._pick_timer = None
         if self._pick_monitor is not None:
             NSEvent.removeMonitor_(self._pick_monitor)
             self._pick_monitor = None
@@ -997,31 +1001,36 @@ class PokeMacroController(NSObject):
         sender.setImage_(_UI.sf("scope.fill", "Waiting", size=13.0) or sender.image())
         sender.setEnabled_(False)
 
-        ctrl = self
+        self._pick_timer = NSTimer.scheduledTimerWithTimeInterval_target_selector_userInfo_repeats_(
+            0.05, self, b'_pickPollTick:', None, True
+        )
 
-        def _handler(event):
-            pt = NSEvent.mouseLocation()
-            h = NSScreen.mainScreen().frame().size.height
-            x = int(round(pt.x))
-            y = int(round(h - pt.y))
-            is_click = event.type() == 1  # NSEventTypeLeftMouseDown
+        def _click_handler(event):
             NSOperationQueue.mainQueue().addOperationWithBlock_(
-                lambda: ctrl._applyPick(x, y, finalize=is_click)
+                lambda: self._applyPick(finalize=True)
             )
 
         self._pick_monitor = NSEvent.addGlobalMonitorForEventsMatchingMask_handler_(
-            (1 << 1) | (1 << 5),  # NSEventMaskLeftMouseDown | NSEventMaskMouseMoved
-            _handler,
+            1 << 1,  # NSEventMaskLeftMouseDown
+            _click_handler,
         )
 
+    def _pickPollTick_(self, timer) -> None:
+        if self._pick_fields is None:
+            return
+        pt = NSEvent.mouseLocation()
+        h = NSScreen.mainScreen().frame().size.height
+        self._pick_fields[0].setStringValue_(str(int(round(pt.x))))
+        self._pick_fields[1].setStringValue_(str(int(round(h - pt.y))))
+
     @objc.python_method
-    def _applyPick(self, x: int, y: int, finalize: bool = True) -> None:
-        if self._pick_fields is not None:
-            self._pick_fields[0].setStringValue_(str(x))
-            self._pick_fields[1].setStringValue_(str(y))
+    def _applyPick(self, finalize: bool = True) -> None:
         if not finalize:
             return
         self._pick_fields = None
+        if self._pick_timer is not None:
+            self._pick_timer.invalidate()
+            self._pick_timer = None
         if self._pick_monitor is not None:
             NSEvent.removeMonitor_(self._pick_monitor)
             self._pick_monitor = None
@@ -1411,6 +1420,9 @@ class PokeMacroController(NSObject):
             self._subprocess_mgr.stop()
             return True
         return False
+
+    def windowWillClose_(self, notification) -> None:
+        NSApplication.sharedApplication().terminate_(None)
 
     # ── Menu bar ───────────────────────────────────────────────────
     @objc.python_method
