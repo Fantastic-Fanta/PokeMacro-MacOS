@@ -29,7 +29,6 @@ from AppKit import (
     NSLayoutAttributeCenterX, NSLayoutAttributeCenterY, NSLayoutAttributeLeading,
     NSLayoutPriorityDefaultHigh,
     NSLayoutPriorityDefaultLow,
-    NSLayoutPriorityFittingSizeCompression,
     NSLineBreakByTruncatingMiddle,
     NSLineBreakByTruncatingTail,
     NSMenu, NSMenuItem,
@@ -52,7 +51,7 @@ from AppKit import (
     NSUserInterfaceLayoutOrientationVertical,
     NSEvent,
     NSScreen,
-    NSView, NSViewNoIntrinsicMetric,
+    NSView,
     NSVisualEffectBlendingModeBehindWindow,
     NSVisualEffectMaterialSidebar,
     NSVisualEffectStateActive,
@@ -86,17 +85,9 @@ LABEL_W    = 155.0
 FIELD_W    = 80.0
 BADGE_W    = 16.0
 PICK_BTN_W = 26.0
-# Tab-scroll document width to fit Positions coord grid (_UI.box inner H pad 12).
-_POSITIONS_TAB_DOC_MIN_W = (
-    2 * UI_PAD
-    + 2 * 12.0
-    + LABEL_W
-    + BADGE_W
-    + FIELD_W
-    + BADGE_W
-    + FIELD_W
-    + PICK_BTN_W
-)
+# Inner padding for _CardView contents — keep in sync with _UI.box.
+_CARD_INNER_PAD_H = 12.0
+_CARD_INNER_PAD_V = 10.0
 
 # ── Data ───────────────────────────────────────────────────────────────
 POSITION_KEYS = [
@@ -152,22 +143,6 @@ class _FlippedView(NSView):
         return True
 
 
-class _IntrinsicWidthDocRoot(NSView):
-    """Reports a fixed horizontal intrinsic width so NSTabView does not grow past Positions."""
-
-    @objc.python_method
-    def setPreferredDocumentWidth_(self, w: float) -> None:
-        self._preferred_doc_w = float(w)
-        self.invalidateIntrinsicContentSize()
-
-    def intrinsicContentSize(self):
-        w = getattr(self, "_preferred_doc_w", None)
-        if w is None:
-            return objc.super(_IntrinsicWidthDocRoot, self).intrinsicContentSize()
-        return NSMakeSize(w, NSViewNoIntrinsicMetric)
-
-
-# ── Click-through content view ─────────────────────────────────────────
 class _ClickThroughView(NSView):
     @objc.python_method
     def set_click_through(self, enabled: bool) -> None:
@@ -366,29 +341,10 @@ class _UI:
         return box
 
     @staticmethod
-    def tab_scroll(
-        doc: NSView,
-        intrinsic_document_width: float | None = None,
-    ) -> NSView:
+    def tab_scroll(doc: NSView) -> NSView:
         """Scrollable tab content view. Uses a flipped document container so
         content anchors to the top, wrapped in a plain NSView so NSTabView
-        can resize it via setFrame:.
-
-        intrinsic_document_width — when set (e.g. _POSITIONS_TAB_DOC_MIN_W), doc
-        is wrapped so the tab's fitting width matches Positions and Dex does not
-        widen the window."""
-        if intrinsic_document_width is not None:
-            root = _IntrinsicWidthDocRoot.alloc().init()
-            root.setPreferredDocumentWidth_(intrinsic_document_width)
-            root.setTranslatesAutoresizingMaskIntoConstraints_(False)
-            doc.setTranslatesAutoresizingMaskIntoConstraints_(False)
-            root.addSubview_(doc)
-            _UI.pin_edges(doc, root)
-            root.setContentHuggingPriority_forOrientation_(
-                NSLayoutPriorityDefaultLow,
-                NSUserInterfaceLayoutOrientationHorizontal,
-            )
-            doc = root
+        can resize it via setFrame:."""
         fv = _FlippedView.alloc().init()
         fv.setTranslatesAutoresizingMaskIntoConstraints_(False)
         doc.setTranslatesAutoresizingMaskIntoConstraints_(False)
@@ -428,7 +384,7 @@ class _UI:
             layer.setBorderWidth_(1.0)
         inner.setTranslatesAutoresizingMaskIntoConstraints_(False)
         card.addSubview_(inner)
-        H, V = 12.0, 10.0
+        H, V = _CARD_INNER_PAD_H, _CARD_INNER_PAD_V
         inner.topAnchor().constraintEqualToAnchor_constant_(card.topAnchor(), V).setActive_(True)
         inner.bottomAnchor().constraintEqualToAnchor_constant_(card.bottomAnchor(), -V).setActive_(True)
         inner.leadingAnchor().constraintEqualToAnchor_constant_(card.leadingAnchor(), H).setActive_(True)
@@ -598,27 +554,27 @@ class _DropZoneView(NSView):
         # Hero icon (drop affordance)
         self._iv = NSImageView.alloc().init()
         self._iv.setTranslatesAutoresizingMaskIntoConstraints_(False)
-        img = _UI.sf("arrow.down.circle.fill", "drop image here", size=30.0, weight=-0.25)
+        img = _UI.sf("arrow.down.circle.fill", "drop image here", size=32.0, weight=-0.25)
         if img is None:
-            img = _UI.sf("photo.on.rectangle.angled", "drop image here", size=30.0)
+            img = _UI.sf("photo.on.rectangle.angled", "drop image here", size=32.0)
         if img is None:
-            img = _UI.sf("photo.on.rectangle", "drop image here", size=30.0)
+            img = _UI.sf("photo.on.rectangle", "drop image here", size=32.0)
         if img is not None:
             self._iv.setImage_(img)
         self._sync_icon_tint()
-        ICON = 44.0
+        ICON = 48.0
         self._iv.widthAnchor().constraintEqualToConstant_(ICON).setActive_(True)
         self._iv.heightAnchor().constraintEqualToConstant_(ICON).setActive_(True)
 
         # Title
-        title_lbl = _UI.label(title, size=14.0, bold=True)
+        title_lbl = _UI.label(title, size=14.5, bold=True)
         title_lbl.setAlignment_(NSCenterTextAlignment)
         title_lbl.setTranslatesAutoresizingMaskIntoConstraints_(False)
 
-        # Hint — keep short so two columns fit Positions tab width
+        # Hint — short enough for two columns; truncates if the pane is very narrow
         hint_lbl = _UI.label(
-            "Drop or choose file.",
-            size=11.0,
+            "Drop a screenshot, or tap Choose.",
+            size=11.25,
             color=NSColor.secondaryLabelColor(),
         )
         hint_lbl.setAlignment_(NSCenterTextAlignment)
@@ -626,7 +582,7 @@ class _DropZoneView(NSView):
 
         # Current filename (muted monospaced)
         self._path_lbl = NSTextField.labelWithString_(Path(self._path).name)
-        self._path_lbl.setFont_(_UI.mono_font(9.5))
+        self._path_lbl.setFont_(_UI.mono_font(10.0))
         self._path_lbl.setTextColor_(NSColor.tertiaryLabelColor())
         self._path_lbl.setLineBreakMode_(NSLineBreakByTruncatingMiddle)
         self._path_lbl.setAlignment_(NSCenterTextAlignment)
@@ -636,14 +592,14 @@ class _DropZoneView(NSView):
         self._browse_btn = NSButton.alloc().init()
         self._browse_btn.setButtonType_(NSButtonTypeMomentaryPushIn)
         self._browse_btn.setBezelStyle_(NSBezelStyleRounded)
-        self._browse_btn.setTitle_("Choose…")
-        self._browse_btn.setFont_(NSFont.systemFontOfSize_(11.0))
+        self._browse_btn.setTitle_("Choose file…")
+        self._browse_btn.setFont_(NSFont.systemFontOfSize_(11.5))
         self._browse_btn.setTranslatesAutoresizingMaskIntoConstraints_(False)
         self.browse_button = self._browse_btn
 
         vstack = NSStackView.stackViewWithViews_([])
         vstack.setOrientation_(NSUserInterfaceLayoutOrientationVertical)
-        vstack.setSpacing_(8.0)
+        vstack.setSpacing_(9.0)
         vstack.setAlignment_(NSLayoutAttributeCenterX)
         vstack.setTranslatesAutoresizingMaskIntoConstraints_(False)
         vstack.addView_inGravity_(self._iv, NSStackViewGravityTop)
@@ -653,7 +609,8 @@ class _DropZoneView(NSView):
         vstack.addView_inGravity_(self._browse_btn, NSStackViewGravityTop)
 
         self.addSubview_(vstack)
-        EDGE_H = 12.0
+        # Inset inside the drop well; card already uses _CARD_INNER_PAD_H from ss_card.
+        EDGE_H = 10.0
         vstack.leadingAnchor().constraintEqualToAnchor_constant_(
             self.leadingAnchor(), EDGE_H
         ).setActive_(True)
@@ -664,11 +621,11 @@ class _DropZoneView(NSView):
 
         self._path_lbl.widthAnchor().constraintEqualToAnchor_(vstack.widthAnchor()).setActive_(True)
 
-        _ph = NSLayoutPriorityFittingSizeCompression
+        _prio = NSLayoutPriorityDefaultLow
         _ori = NSUserInterfaceLayoutOrientationHorizontal
         for v in (title_lbl, hint_lbl, self._path_lbl, self._browse_btn, self._iv, vstack):
-            v.setContentCompressionResistancePriority_forOrientation_(_ph, _ori)
-        self.setContentCompressionResistancePriority_forOrientation_(_ph, _ori)
+            v.setContentCompressionResistancePriority_forOrientation_(_prio, _ori)
+        self.setContentCompressionResistancePriority_forOrientation_(_prio, _ori)
 
     @objc.python_method
     def _sync_icon_tint(self) -> None:
@@ -1228,20 +1185,21 @@ class PokeMacroController(NSObject):
     # ── Dex tab ────────────────────────────────────────────────────
     @objc.python_method
     def _tab_dex(self) -> NSView:
-        H, V = 14.0, 12.0
-        GAP  = 12.0
-        DROP_H = 160.0
-        DEX_OUTPUT_SC_MIN_H = 220.0
+        CH, CV = _CARD_INNER_PAD_H, _CARD_INNER_PAD_V
+        GAP  = 11.0
+        DROP_H = 168.0
+        # Keeps the output panel readable; still grows with the window above this.
+        DEX_OUTPUT_MIN_H = 188.0
 
         # ── Two spacious drop zones ───────────────────────────────
-        self._dex_p1_field = _DropZoneView.alloc().initWithFrame_(NSMakeRect(0, 0, 160, DROP_H))
+        self._dex_p1_field = _DropZoneView.alloc().initWithFrame_(NSMakeRect(0, 0, 200, DROP_H))
         self._dex_p1_field._setup("Page 1", str(PROJECT_ROOT / "dex_screenshot.png"))
         self._dex_p1_field.browse_button.setTarget_(self)
         self._dex_p1_field.browse_button.setAction_(b"dexBrowsePage1:")
         self._dex_p1_field.setTranslatesAutoresizingMaskIntoConstraints_(False)
         self._dex_p1_field.heightAnchor().constraintEqualToConstant_(DROP_H).setActive_(True)
 
-        self._dex_p2_field = _DropZoneView.alloc().initWithFrame_(NSMakeRect(0, 0, 160, DROP_H))
+        self._dex_p2_field = _DropZoneView.alloc().initWithFrame_(NSMakeRect(0, 0, 200, DROP_H))
         self._dex_p2_field._setup("Page 2", str(PROJECT_ROOT / "dex_screenshot2.png"))
         self._dex_p2_field.browse_button.setTarget_(self)
         self._dex_p2_field.browse_button.setAction_(b"dexBrowsePage2:")
@@ -1252,24 +1210,24 @@ class PokeMacroController(NSObject):
         hdr_title = _UI.label("Dex screenshots", size=13.0, bold=True)
         hdr_title.setTranslatesAutoresizingMaskIntoConstraints_(False)
         hdr_sub = _UI.label(
-            "Both pages, then Scan.",
+            "Add both pages, then run Scan.",
             size=11.0,
             color=NSColor.secondaryLabelColor(),
         )
         hdr_sub.setTranslatesAutoresizingMaskIntoConstraints_(False)
         ss_hdr = NSStackView.stackViewWithViews_([hdr_title, hdr_sub])
         ss_hdr.setOrientation_(NSUserInterfaceLayoutOrientationVertical)
-        ss_hdr.setSpacing_(3.0)
+        ss_hdr.setSpacing_(4.0)
         ss_hdr.setAlignment_(NSLayoutAttributeLeading)
         ss_hdr.setTranslatesAutoresizingMaskIntoConstraints_(False)
 
         scan_btn = _UI.button("Scan", self, b"dexRunScan:")
         scan_btn.setTranslatesAutoresizingMaskIntoConstraints_(False)
 
-        _ph = NSLayoutPriorityFittingSizeCompression
+        _prio = NSLayoutPriorityDefaultLow
         _horiz = NSUserInterfaceLayoutOrientationHorizontal
         for v in (hdr_title, hdr_sub, ss_hdr, scan_btn):
-            v.setContentCompressionResistancePriority_forOrientation_(_ph, _horiz)
+            v.setContentCompressionResistancePriority_forOrientation_(_prio, _horiz)
 
         ss_card = _CardView.alloc().init()
         ss_card.setWantsLayer_(True)
@@ -1285,11 +1243,11 @@ class PokeMacroController(NSObject):
 
         # Header row: titles left, Scan right
         ss_hdr.topAnchor().constraintEqualToAnchor_constant_(
-            ss_card.topAnchor(), V).setActive_(True)
+            ss_card.topAnchor(), CV).setActive_(True)
         ss_hdr.leadingAnchor().constraintEqualToAnchor_constant_(
-            ss_card.leadingAnchor(), H).setActive_(True)
+            ss_card.leadingAnchor(), CH).setActive_(True)
         scan_btn.trailingAnchor().constraintEqualToAnchor_constant_(
-            ss_card.trailingAnchor(), -H).setActive_(True)
+            ss_card.trailingAnchor(), -CH).setActive_(True)
         scan_btn.centerYAnchor().constraintEqualToAnchor_(
             ss_hdr.centerYAnchor()).setActive_(True)
         ss_hdr.trailingAnchor().constraintLessThanOrEqualToAnchor_constant_(
@@ -1299,19 +1257,19 @@ class PokeMacroController(NSObject):
         self._dex_p1_field.topAnchor().constraintEqualToAnchor_constant_(
             ss_hdr.bottomAnchor(), GAP).setActive_(True)
         self._dex_p1_field.leadingAnchor().constraintEqualToAnchor_constant_(
-            ss_card.leadingAnchor(), H).setActive_(True)
+            ss_card.leadingAnchor(), CH).setActive_(True)
 
         self._dex_p2_field.topAnchor().constraintEqualToAnchor_(
             self._dex_p1_field.topAnchor()).setActive_(True)
         self._dex_p2_field.leadingAnchor().constraintEqualToAnchor_constant_(
             self._dex_p1_field.trailingAnchor(), GAP).setActive_(True)
         self._dex_p2_field.trailingAnchor().constraintEqualToAnchor_constant_(
-            ss_card.trailingAnchor(), -H).setActive_(True)
+            ss_card.trailingAnchor(), -CH).setActive_(True)
         self._dex_p1_field.widthAnchor().constraintEqualToAnchor_(
             self._dex_p2_field.widthAnchor()).setActive_(True)
 
         self._dex_p1_field.bottomAnchor().constraintEqualToAnchor_constant_(
-            ss_card.bottomAnchor(), -V).setActive_(True)
+            ss_card.bottomAnchor(), -CV).setActive_(True)
 
         # ── Output card ───────────────────────────────────────────
         out_hdr = _UI.h_stack(spacing=6.0)
@@ -1325,11 +1283,20 @@ class PokeMacroController(NSObject):
         out_hdr.addView_inGravity_(_UI.button("Clear",  self, b"dexClearOutput:"), NSStackViewGravityTop)
         out_hdr.setTranslatesAutoresizingMaskIntoConstraints_(False)
 
-        self._dex_tv = _AdaptiveLogTextView.alloc().init()
+        self._dex_tv = _AdaptiveLogTextView.alloc().initWithFrame_(
+            NSMakeRect(0, 0, 320, DEX_OUTPUT_MIN_H)
+        )
         self._dex_tv.setEditable_(False)
         self._dex_tv.setSelectable_(True)
         self._dex_tv.setFont_(_UI.mono_font(11.0))
         self._dex_tv.setTextContainerInset_((6, 6))
+        self._dex_tv.setMinSize_(NSMakeSize(0.0, 0.0))
+        self._dex_tv.setMaxSize_(NSMakeSize(1e7, 1e7))
+        self._dex_tv.setVerticallyResizable_(True)
+        self._dex_tv.setHorizontallyResizable_(False)
+        # NSViewWidthSizable (2): track clip view width (same pattern as Wishlist tab).
+        self._dex_tv.setAutoresizingMask_(2)
+        self._dex_tv.textContainer().setWidthTracksTextView_(True)
         self._dex_tv._apply()
 
         dex_sc = NSScrollView.alloc().init()
@@ -1347,7 +1314,11 @@ class PokeMacroController(NSObject):
             warnings.simplefilter("ignore")
             dex_sc.layer().setBorderColor_(NSColor.separatorColor().CGColor())
         dex_sc.setTranslatesAutoresizingMaskIntoConstraints_(False)
-        dex_sc.heightAnchor().constraintGreaterThanOrEqualToConstant_(DEX_OUTPUT_SC_MIN_H).setActive_(True)
+        dex_sc.heightAnchor().constraintGreaterThanOrEqualToConstant_(DEX_OUTPUT_MIN_H).setActive_(True)
+        dex_sc.setContentHuggingPriority_forOrientation_(
+            NSLayoutPriorityDefaultLow,
+            NSUserInterfaceLayoutOrientationVertical,
+        )
 
         out_card = _CardView.alloc().init()
         out_card.setWantsLayer_(True)
@@ -1358,32 +1329,61 @@ class PokeMacroController(NSObject):
             out_card.layer().setBorderWidth_(1.0)
         out_card.addSubview_(out_hdr)
         out_card.addSubview_(dex_sc)
-        out_hdr.topAnchor().constraintEqualToAnchor_constant_(out_card.topAnchor(), V).setActive_(True)
-        out_hdr.leadingAnchor().constraintEqualToAnchor_constant_(out_card.leadingAnchor(), H).setActive_(True)
-        out_hdr.trailingAnchor().constraintEqualToAnchor_constant_(out_card.trailingAnchor(), -H).setActive_(True)
+        out_hdr.topAnchor().constraintEqualToAnchor_constant_(out_card.topAnchor(), CV).setActive_(True)
+        out_hdr.leadingAnchor().constraintEqualToAnchor_constant_(out_card.leadingAnchor(), CH).setActive_(True)
+        out_hdr.trailingAnchor().constraintEqualToAnchor_constant_(out_card.trailingAnchor(), -CH).setActive_(True)
         dex_sc.topAnchor().constraintEqualToAnchor_constant_(out_hdr.bottomAnchor(), 8.0).setActive_(True)
-        dex_sc.leadingAnchor().constraintEqualToAnchor_constant_(out_card.leadingAnchor(), H).setActive_(True)
-        dex_sc.trailingAnchor().constraintEqualToAnchor_constant_(out_card.trailingAnchor(), -H).setActive_(True)
-        dex_sc.bottomAnchor().constraintEqualToAnchor_constant_(out_card.bottomAnchor(), -V).setActive_(True)
+        dex_sc.leadingAnchor().constraintEqualToAnchor_constant_(out_card.leadingAnchor(), CH).setActive_(True)
+        dex_sc.trailingAnchor().constraintEqualToAnchor_constant_(out_card.trailingAnchor(), -CH).setActive_(True)
+        dex_sc.bottomAnchor().constraintEqualToAnchor_constant_(out_card.bottomAnchor(), -CV).setActive_(True)
 
-        # Match Positions tab: document width follows the tab column (scroll clip), not drop-zone intrinsic width.
-        outer = _UI.v_stack(spacing=14.0)
-        outer.setEdgeInsets_(NSEdgeInsets(UI_PAD, UI_PAD, UI_PAD, UI_PAD))
-        outer.setTranslatesAutoresizingMaskIntoConstraints_(False)
-        outer.addView_inGravity_(ss_card, NSStackViewGravityTop)
-        outer.addView_inGravity_(out_card, NSStackViewGravityTop)
-        ss_card.widthAnchor().constraintEqualToAnchor_constant_(
-            outer.widthAnchor(), -2 * UI_PAD
-        ).setActive_(True)
-        out_card.widthAnchor().constraintEqualToAnchor_constant_(
-            outer.widthAnchor(), -2 * UI_PAD
-        ).setActive_(True)
+        # Fill the tab vertically (no outer scroll); output text scrolls inside dex_sc only.
+        # Root uses default TAMIC (YES) like _tab_logs / _tab_general so NSTabView can
+        # set the item view's frame to fill the tab; explicit False caused undersized
+        # item_bounds until the window was resized (see debug logs: item w < tab w).
+        w = NSView.alloc().init()
+        pad = UI_PAD
+        w.addSubview_(ss_card)
+        w.addSubview_(out_card)
+        ss_card.topAnchor().constraintEqualToAnchor_constant_(w.topAnchor(), pad).setActive_(True)
+        ss_card.leadingAnchor().constraintEqualToAnchor_constant_(w.leadingAnchor(), pad).setActive_(True)
+        ss_card.trailingAnchor().constraintEqualToAnchor_constant_(w.trailingAnchor(), -pad).setActive_(True)
 
-        for v in (ss_card, out_card, outer):
-            v.setContentCompressionResistancePriority_forOrientation_(_ph, _horiz)
+        out_card.topAnchor().constraintEqualToAnchor_constant_(ss_card.bottomAnchor(), 14.0).setActive_(True)
+        out_card.leadingAnchor().constraintEqualToAnchor_constant_(w.leadingAnchor(), pad).setActive_(True)
+        out_card.trailingAnchor().constraintEqualToAnchor_constant_(w.trailingAnchor(), -pad).setActive_(True)
+        out_card.bottomAnchor().constraintEqualToAnchor_constant_(w.bottomAnchor(), -pad).setActive_(True)
+
+        for v in (ss_card, out_card):
+            v.setContentCompressionResistancePriority_forOrientation_(_prio, _horiz)
+        ss_card.setContentHuggingPriority_forOrientation_(
+            NSLayoutPriorityDefaultHigh,
+            NSUserInterfaceLayoutOrientationVertical,
+        )
+        out_card.setContentHuggingPriority_forOrientation_(
+            NSLayoutPriorityDefaultLow,
+            NSUserInterfaceLayoutOrientationVertical,
+        )
 
         self._dex_reload_output()
-        return _UI.tab_scroll(outer, intrinsic_document_width=_POSITIONS_TAB_DOC_MIN_W)
+        return w
+
+    @objc.python_method
+    def _dex_sync_text_view(self) -> None:
+        """Force layout/display after programmatic text storage edits (otherwise the view
+        can stay stale until something triggers a relayout, e.g. resizing the window)."""
+        tv = self._dex_tv
+        if tv is None:
+            return
+        lm = tv.layoutManager()
+        tc = tv.textContainer()
+        if lm is not None and tc is not None:
+            lm.ensureLayoutForTextContainer_(tc)
+        tv.setNeedsDisplay_(True)
+        sc = tv.enclosingScrollView()
+        if sc is not None:
+            sc.reflectScrolledClipView_(sc.contentView())
+        tv.scrollToBeginningOfDocument_(None)
 
     @objc.python_method
     def _dex_set_output(self, text: str) -> None:
@@ -1393,16 +1393,22 @@ class PokeMacroController(NSObject):
         ts = tv.textStorage()
         if ts is None:
             return
-        ts.replaceCharactersInRange_withAttributedString_(
-            (0, int(ts.length())),
-            NSMutableAttributedString.alloc().initWithString_attributes_(
-                text,
-                {
-                    NSForegroundColorAttributeName: NSColor.secondaryLabelColor(),
-                    NSFontAttributeName: _UI.mono_font(11.0),
-                },
-            ),
+        attr = NSMutableAttributedString.alloc().initWithString_attributes_(
+            text,
+            {
+                NSForegroundColorAttributeName: NSColor.secondaryLabelColor(),
+                NSFontAttributeName: _UI.mono_font(11.0),
+            },
         )
+        ts.beginEditing()
+        try:
+            ts.replaceCharactersInRange_withAttributedString_(
+                (0, int(ts.length())),
+                attr,
+            )
+        finally:
+            ts.endEditing()
+        self._dex_sync_text_view()
 
     @objc.python_method
     def _dex_output_file(self) -> str:
@@ -1493,7 +1499,12 @@ class PokeMacroController(NSObject):
             return
         ts = self._dex_tv.textStorage()
         if ts is not None and ts.length():
-            ts.deleteCharactersInRange_((0, int(ts.length())))
+            ts.beginEditing()
+            try:
+                ts.deleteCharactersInRange_((0, int(ts.length())))
+            finally:
+                ts.endEditing()
+            self._dex_sync_text_view()
 
     def dexExport_(self, sender) -> None:
         if self._dex_tv is None:
@@ -1869,6 +1880,11 @@ class PokeMacroController(NSObject):
     # ── Selector actions ────────────────────────────────────────────
     def switchToTab_(self, index) -> None:
         self._tab.selectTabViewItemAtIndex_(int(index))
+        win = self._window
+        if win is not None:
+            cv = win.contentView()
+            if cv is not None:
+                cv.layoutSubtreeIfNeeded()
 
     def openPreferences_(self, sender) -> None:
         if self._sidebar_tv is not None:
