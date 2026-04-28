@@ -22,6 +22,7 @@ from AppKit import (
     NSColor, NSCommandKeyMask,
     NSEdgeInsets, NSFont,
     NSFocusRingTypeNone,
+    NSFontAttributeName, NSForegroundColorAttributeName,
     NSGridView, NSGridRowAlignmentFirstBaseline,
     NSImage, NSImageSymbolConfiguration, NSImageView,
     NSLayoutAttributeCenterY, NSLayoutAttributeLeading,
@@ -330,7 +331,7 @@ class _UI:
 
         sc = NSScrollView.alloc().init()
         sc.setDocumentView_(fv)
-        sc.setDrawsBackground_(True)
+        sc.setDrawsBackground_(False)
         sc.setHasVerticalScroller_(True)
         sc.setAutohidesScrollers_(True)
         sc.setBorderType_(0)
@@ -490,7 +491,7 @@ class _AdaptiveLogTextView(NSTextView):
     def _apply(self) -> None:
         self.setDrawsBackground_(True)
         self.setBackgroundColor_(NSColor.textBackgroundColor())
-        self.setTextColor_(NSColor.textColor())
+        self.setTextColor_(NSColor.secondaryLabelColor())
 
 
 class _AdaptiveWishTextView(NSTextView):
@@ -840,13 +841,6 @@ class PokeMacroController(NSObject):
     def _tab_wishlist(self) -> NSView:
         outer = _UI.v_stack(spacing=12.0)
         outer.setEdgeInsets_(NSEdgeInsets(UI_PAD, UI_PAD, UI_PAD, UI_PAD))
-        outer.addView_inGravity_(
-            _UI.label(
-                "One item per line, or comma-separated values.",
-                size=11.0, color=NSColor.secondaryLabelColor(),
-            ),
-            NSStackViewGravityTop,
-        )
         self._wish: dict[str, NSTextView] = {}
         for name, h in [("Reskins", 80), ("Gradients", 80), ("Roamings", 140), ("Special", 140)]:
             inner = _UI.v_stack(spacing=6.0)
@@ -968,9 +962,10 @@ class PokeMacroController(NSObject):
     # ── Logs tab ───────────────────────────────────────────────────
     @objc.python_method
     def _tab_logs(self) -> NSView:
-        outer = _UI.v_stack(spacing=14.0)
-        outer.setEdgeInsets_(NSEdgeInsets(UI_PAD, UI_PAD, UI_PAD, UI_PAD))
+        w   = NSView.alloc().init()
+        pad = UI_PAD
 
+        # ── Discord card ──────────────────────────────────────────
         discord = _UI.v_stack(spacing=10.0)
         discord.addView_inGravity_(
             _UI.label("Discord", size=11.0, color=NSColor.secondaryLabelColor()),
@@ -995,8 +990,8 @@ class PokeMacroController(NSObject):
         tok_row = _UI.h_stack(spacing=8.0)
         tok_row.setDistribution_(NSStackViewDistributionFill)
         tok_row.addView_inGravity_(_UI.label("Bot token"), NSStackViewGravityTop)
-        tok_row.addView_inGravity_(tok_stack,       NSStackViewGravityTop)
-        tok_row.addView_inGravity_(self._tokbtn,    NSStackViewGravityTop)
+        tok_row.addView_inGravity_(tok_stack,    NSStackViewGravityTop)
+        tok_row.addView_inGravity_(self._tokbtn, NSStackViewGravityTop)
         discord.addView_inGravity_(tok_row, NSStackViewGravityTop)
 
         self._server = NSTextField.alloc().init()
@@ -1007,18 +1002,19 @@ class PokeMacroController(NSObject):
         discord.addView_inGravity_(
             self._form_row("Server ID (numeric)", self._server), NSStackViewGravityTop
         )
-        _UI.add_card(outer, discord)
+        discord_card = _UI.box(discord)
+        discord_card.setTranslatesAutoresizingMaskIntoConstraints_(False)
 
-        output = _UI.v_stack(spacing=8.0)
-        output.addView_inGravity_(
+        # ── Output card (stretches to fill remaining height) ──────
+        hdr = _UI.h_stack(spacing=6.0)
+        hdr.addView_inGravity_(
             _UI.label("Output", size=11.0, color=NSColor.secondaryLabelColor()),
             NSStackViewGravityTop,
         )
-        btn_row = _UI.h_stack(spacing=6.0)
-        btn_row.addView_inGravity_(_UI.spacer_h(),                               NSStackViewGravityTop)
-        btn_row.addView_inGravity_(_UI.button("Copy",  self, b"copyLogs:"),      NSStackViewGravityTop)
-        btn_row.addView_inGravity_(_UI.button("Clear", self, b"clearLogs:"),     NSStackViewGravityTop)
-        output.addView_inGravity_(btn_row, NSStackViewGravityTop)
+        hdr.addView_inGravity_(_UI.spacer_h(),                              NSStackViewGravityTop)
+        hdr.addView_inGravity_(_UI.button("Copy",  self, b"copyLogs:"),     NSStackViewGravityTop)
+        hdr.addView_inGravity_(_UI.button("Clear", self, b"clearLogs:"),    NSStackViewGravityTop)
+        hdr.setTranslatesAutoresizingMaskIntoConstraints_(False)
 
         self._log = _AdaptiveLogTextView.alloc().init()
         self._log.setEditable_(False)
@@ -1026,13 +1022,55 @@ class PokeMacroController(NSObject):
         self._log.setFont_(_UI.mono_font())
         self._log.setTextContainerInset_((6, 6))
         self._log._apply()
-        output.addView_inGravity_(_UI.scroll(self._log, 300), NSStackViewGravityTop)
-        _UI.add_card(outer, output)
-        outer.addView_inGravity_(_UI.spacer_v(), NSStackViewGravityTop)
 
-        w = NSView.alloc().init()
-        w.addSubview_(outer)
-        _UI.pin_edges(outer, w)
+        sc = NSScrollView.alloc().init()
+        sc.setDocumentView_(self._log)
+        sc.setHasVerticalScroller_(True)
+        sc.setAutohidesScrollers_(True)
+        sc.setBorderType_(0)
+        sc.setDrawsBackground_(True)
+        sc.setWantsLayer_(True)
+        sc.layer().setCornerRadius_(6.0)
+        sc.layer().setMasksToBounds_(True)
+        sc.layer().setBorderWidth_(1.0)
+        import warnings
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            sc.layer().setBorderColor_(NSColor.separatorColor().CGColor())
+        sc.setTranslatesAutoresizingMaskIntoConstraints_(False)
+
+        H, V = 12.0, 10.0
+        output_card = _CardView.alloc().init()
+        output_card.setWantsLayer_(True)
+        output_card.setTranslatesAutoresizingMaskIntoConstraints_(False)
+        output_card._refresh()
+        layer = output_card.layer()
+        if layer is not None:
+            layer.setCornerRadius_(8.0)
+            layer.setBorderWidth_(1.0)
+        output_card.addSubview_(hdr)
+        output_card.addSubview_(sc)
+        hdr.topAnchor().constraintEqualToAnchor_constant_(output_card.topAnchor(), V).setActive_(True)
+        hdr.leadingAnchor().constraintEqualToAnchor_constant_(output_card.leadingAnchor(), H).setActive_(True)
+        hdr.trailingAnchor().constraintEqualToAnchor_constant_(output_card.trailingAnchor(), -H).setActive_(True)
+        sc.topAnchor().constraintEqualToAnchor_constant_(hdr.bottomAnchor(), 8.0).setActive_(True)
+        sc.leadingAnchor().constraintEqualToAnchor_constant_(output_card.leadingAnchor(), H).setActive_(True)
+        sc.trailingAnchor().constraintEqualToAnchor_constant_(output_card.trailingAnchor(), -H).setActive_(True)
+        sc.bottomAnchor().constraintEqualToAnchor_constant_(output_card.bottomAnchor(), -V).setActive_(True)
+
+        # ── Place both cards in wrapper ───────────────────────────
+        w.addSubview_(discord_card)
+        w.addSubview_(output_card)
+
+        discord_card.topAnchor().constraintEqualToAnchor_constant_(w.topAnchor(), pad).setActive_(True)
+        discord_card.leadingAnchor().constraintEqualToAnchor_constant_(w.leadingAnchor(), pad).setActive_(True)
+        discord_card.trailingAnchor().constraintEqualToAnchor_constant_(w.trailingAnchor(), -pad).setActive_(True)
+
+        output_card.topAnchor().constraintEqualToAnchor_constant_(discord_card.bottomAnchor(), 14.0).setActive_(True)
+        output_card.leadingAnchor().constraintEqualToAnchor_constant_(w.leadingAnchor(), pad).setActive_(True)
+        output_card.trailingAnchor().constraintEqualToAnchor_constant_(w.trailingAnchor(), -pad).setActive_(True)
+        output_card.bottomAnchor().constraintEqualToAnchor_constant_(w.bottomAnchor(), -pad).setActive_(True)
+
         return w
 
     # ── Selector actions ────────────────────────────────────────────
@@ -1250,7 +1288,14 @@ class PokeMacroController(NSObject):
             return
         at_bottom = self._near_bottom()
         L = len(ts.string() or "")
-        ts.replaceCharactersInRange_withString_((L, 0), str(s) + "\n")
+        astr = NSMutableAttributedString.alloc().initWithString_attributes_(
+            str(s) + "\n",
+            {
+                NSForegroundColorAttributeName: NSColor.secondaryLabelColor(),
+                NSFontAttributeName: _UI.mono_font(),
+            },
+        )
+        ts.replaceCharactersInRange_withAttributedString_((L, 0), astr)
         if at_bottom:
             self._log.scrollToEndOfDocument_(None)
 
