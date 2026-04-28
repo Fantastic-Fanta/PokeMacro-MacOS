@@ -428,9 +428,9 @@ class ConfigManager:
 
     def _default(self) -> dict:
         return {
-            "HuntingMode": "egg",
+            "HuntingMode": "Egg Resetter",
             "Username": "",
-            "Mode": "Default",
+            "Mode": "URL Open",
             "IsReskin": False, "IsShiny": False, "IsGradient": False,
             "IsAny": True, "IsGood": False,
             "Wishlist": {"Reskins": [], "Gradients": [], "Roamings": [], "Special": []},
@@ -807,17 +807,18 @@ class PokeMacroController(NSObject):
             _UI.label("Hunt", size=11.0, color=NSColor.secondaryLabelColor()),
             NSStackViewGravityTop,
         )
-        self._hunt = _UI.popup(["egg", "roam"])
-        self._all_config_controls.append(self._hunt)
-        hunt.addView_inGravity_(self._form_row("Hunting mode", self._hunt), NSStackViewGravityTop)
-
         self._user = _UI.field()
         self._all_config_controls.append(self._user)
         hunt.addView_inGravity_(self._form_row("Username", self._user), NSStackViewGravityTop)
 
-        self._fast = _UI.popup(["Default", "Fast"])
+        self._hunt = _UI.popup(["Egg Resetter", "Roaming Hunter"])
+        self._all_config_controls.append(self._hunt)
+        hunt.addView_inGravity_(self._form_row("Hunting mode", self._hunt), NSStackViewGravityTop)
+
+
+        self._fast = _UI.popup(["URL Open", "Quick rejoin"])
         self._all_config_controls.append(self._fast)
-        hunt.addView_inGravity_(self._form_row("Speed", self._fast), NSStackViewGravityTop)
+        hunt.addView_inGravity_(self._form_row("Rejoin method", self._fast), NSStackViewGravityTop)
         _UI.add_card(outer, hunt)
 
         filters = _UI.v_stack(spacing=8.0)
@@ -830,8 +831,8 @@ class PokeMacroController(NSObject):
             ("IsReskin",   "Reskin"),
             ("IsShiny",    "Shiny"),
             ("IsGradient", "Gradient"),
-            ("IsAny",      "Any"),
             ("IsGood",     "Good"),
+            ("IsAny",      "Reskin Gradient"),
         ]:
             cb = _UI.checkbox(title)
             self._bools[key] = cb
@@ -1293,9 +1294,9 @@ class PokeMacroController(NSObject):
     @objc.python_method
     def _gather(self) -> dict:
         return {
-            "HuntingMode": str(self._hunt.titleOfSelectedItem() or "egg"),
+            "HuntingMode": str(self._hunt.titleOfSelectedItem() or "Egg Resetter"),
             "Username":    str(self._user.stringValue() or ""),
-            "Mode":        str(self._fast.titleOfSelectedItem() or "Default"),
+            "Mode":        str(self._fast.titleOfSelectedItem() or "URL Open"),
             "Wishlist":    {n: self._read_wish(t) for n, t in self._wish.items()},
             "Positions":   {k: self._xy(t) for k, t in self._pos.items()},
             "ChatWindow":          {c: self._xy(p) for c, p in self._regions["ChatWindow"].items()},
@@ -1316,9 +1317,9 @@ class PokeMacroController(NSObject):
     @objc.python_method
     def _load_all_fields(self) -> None:
         c = self._config
-        self._hunt.selectItemWithTitle_(c.get("HuntingMode", "egg") or "egg")
+        self._hunt.selectItemWithTitle_(c.get("HuntingMode", "Egg Resetter") or "Egg Resetter")
         self._user.setStringValue_(c.get("Username", "") or "")
-        self._fast.selectItemWithTitle_(c.get("Mode", "Default") or "Default")
+        self._fast.selectItemWithTitle_(c.get("Mode", "URL Open") or "URL Open")
         for k, b in self._bools.items():
             b.setState_(int(NSOnState) if c.get(k, False) else int(NSOffState))
         w = c.get("Wishlist", {}) or {}

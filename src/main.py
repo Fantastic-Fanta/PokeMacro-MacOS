@@ -36,6 +36,6 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    if HUNTING_MODE == "egg" and MODE != "fast":
+    if HUNTING_MODE == "egg" and MODE not in ("fast", "quick rejoin"):
         join_game()
     main()

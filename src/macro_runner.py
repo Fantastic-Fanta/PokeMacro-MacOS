@@ -121,7 +121,7 @@ class MacroRunner:
         return False
 
     def _handle_no_match(self) -> None:
-        if self._config.mode == "fast":
+        if self._config.mode in ("fast", "quick rejoin"):
             pyautogui.write("//qre", interval=0.02)
             pyautogui.press("enter")
         else:

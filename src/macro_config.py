@@ -90,12 +90,12 @@ IS_SHINY = _config.get("IsShiny", False)
 IS_GRADIENT = _config.get("IsGradient", False)
 IS_ANY = _config.get("IsAny", True)
 IS_GOOD = _config.get("IsGood", False)
-# "Default" = full click sequence; "Fast" = skip first 3 steps and use //qre instead of URL rejoin
-MODE = str(_config.get("Mode", "Default")).strip().lower()
+# "URL Open" = full click sequence; "Quick rejoin" = skip first 3 steps and use //qre instead of URL rejoin
+MODE = str(_config.get("Mode", "URL Open")).strip().lower()
 
 
-_raw_mode = str(_config.get("HuntingMode", "egg")).strip().lower()
-HUNTING_MODE = "roam" if _raw_mode in ("roam", "roaming", "roamhunter") else "egg"
+_raw_mode = str(_config.get("HuntingMode", "Egg Resetter")).strip().lower()
+HUNTING_MODE = "roam" if _raw_mode in ("roam", "roaming", "roamhunter", "roaming hunter") else "egg"
 
 
 @dataclass
@@ -228,7 +228,7 @@ _chat_center = (DEFAULT_REGION.x + DEFAULT_REGION.width // 2, DEFAULT_REGION.y +
 DEFAULT_CLICK_SEQUENCE = _create_default_click_sequence(DEFAULT_POSITIONS, SCREEN_CENTER, _chat_center)
 # Fast: drop first 3 click steps (loading + two top-screen taps before savefile wait)
 _effective_clicks = (
-    DEFAULT_CLICK_SEQUENCE[5:] if MODE == "fast" else DEFAULT_CLICK_SEQUENCE
+    DEFAULT_CLICK_SEQUENCE[5:] if MODE in ("fast", "quick rejoin") else DEFAULT_CLICK_SEQUENCE
 )
 
 DEFAULT_MACRO_CONFIG = MacroConfig(
