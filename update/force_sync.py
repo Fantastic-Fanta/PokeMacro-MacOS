@@ -3,7 +3,6 @@ from __future__ import annotations
 import json
 import os
 import shutil
-import sys
 import tempfile
 import zipfile
 from collections.abc import Callable
@@ -15,9 +14,8 @@ from urllib.request import Request
 
 # Directory that contains ``update/``, ``configs.yaml``, etc.
 ROOT = Path(__file__).resolve().parent.parent
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
-from github_http import emit_tls_hint, urlopen_tls
+
+from .tls import emit_tls_hint, urlopen_tls
 
 DEFAULT_GITHUB_REPO = "Fantastic-Fanta/PokeMacro-MacOS"
 _IGNORE = frozenset({"configs.yaml"})

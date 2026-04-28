@@ -13,14 +13,9 @@ from discord import app_commands
 def _http_connector():
     """Use same TLS trust as GitHub updater (certifi, SSL_CERT_FILE, POKEMACRO_INSECURE_SSL)."""
     try:
-        import sys
-
         import aiohttp
 
-        root = Path(__file__).resolve().parent.parent
-        if str(root) not in sys.path:
-            sys.path.insert(0, str(root))
-        from github_http import ssl_context
+        from .github_http import ssl_context
 
         return aiohttp.TCPConnector(ssl=ssl_context(emit=None))
     except Exception:

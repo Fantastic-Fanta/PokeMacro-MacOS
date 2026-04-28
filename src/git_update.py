@@ -5,7 +5,6 @@ import os
 import queue
 import re
 import shutil
-import sys
 import tempfile
 import threading
 import zipfile
@@ -16,10 +15,9 @@ from typing import Any
 from urllib.error import HTTPError, URLError
 from urllib.request import Request
 
+from .github_http import emit_tls_hint, urlopen_tls
+
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
-if str(PROJECT_ROOT) not in sys.path:
-    sys.path.insert(0, str(PROJECT_ROOT))
-from github_http import emit_tls_hint, urlopen_tls
 
 # Default for zip installs; overridden by update_repo.txt (first line: owner/repo)
 # or by remote origin in .git/config when present.
