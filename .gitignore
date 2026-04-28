@@ -4,4 +4,3 @@ ENV/
 .DS_Store
 __pycache__/
 .env
-ui.py
