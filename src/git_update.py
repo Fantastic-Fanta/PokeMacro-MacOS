@@ -26,9 +26,6 @@ _IGNORE_FROM_RELEASE = frozenset({"configs.yaml"})
 _PRESERVE_IF_EXISTS = frozenset({".env"})
 _UPDATE_COMMIT_CACHE = PROJECT_ROOT / ".poke_update_commit"
 
-# Only ``update.main`` passes this; blocks accidental ``force_http_update`` calls elsewhere.
-FORCE_UPDATE_CLI_TOKEN = object()
-
 
 def _github_repo_from_url(url: str) -> str | None:
     u = url.strip().rstrip("/")
@@ -304,21 +301,11 @@ def start_background_update(
     threading.Thread(target=work, daemon=True, name="auto-update").start()
 
 
-def force_http_update(
-    emit: Callable[[str], None],
-    *,
-    _cli: object | None = None,
-) -> bool:
-    """Re-download latest GitHub release (or branch zip) ignoring local version and commit cache.
+def force_http_update(emit: Callable[[str], None]) -> bool:
+    """Same as background update but ignores local version and branch commit cache.
 
-    Must be called with ``_cli=FORCE_UPDATE_CLI_TOKEN`` from ``python3 -m update.main`` only.
+    For manual use: ``python3 -m update.main``. Not used by the UI or ``src.main``.
     """
-    if _cli is not FORCE_UPDATE_CLI_TOKEN:
-        emit(
-            "[update] Force update is only available as: python3 -m update.main "
-            "(from the project root)."
-        )
-        return False
     repo = _resolve_github_repo()
     if not repo:
         emit(
