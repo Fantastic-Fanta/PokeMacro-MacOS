@@ -25,6 +25,7 @@ UPDATE_GITHUB_REPO: str | None = "Fantastic-Fanta/PokeMacro-MacOS"
 # Never install these from a release (local config and secrets stay untouched).
 _IGNORE_FROM_RELEASE = frozenset({"configs.yaml"})
 _PRESERVE_IF_EXISTS = frozenset({".env"})
+_UPDATE_COMMIT_CACHE = PROJECT_ROOT / ".poke_update_commit"
 
 GitPullOutcome = Literal["ok", "fail", "unavailable"]
 
@@ -143,43 +144,20 @@ def _merge_release_tree(src_root: Path, emit: Callable[[str], None]) -> None:
     emit("[update] Installed release files. Restart the app to load new code.")
 
 
-def _http_release_update(repo: str, emit: Callable[[str], None]) -> None:
-    try:
-        from . import __version__ as local_ver
-    except Exception:
-        local_ver = "0.0.0"
-
-    api = f"https://api.github.com/repos/{repo}/releases/latest"
-    data = _http_json(api, emit)
-    if not data or not isinstance(data, dict):
-        return
-
-    tag = str(data.get("tag_name") or "").strip()
-    zip_url = data.get("zipball_url")
-    if not tag or not zip_url or not isinstance(zip_url, str):
-        emit("[update] Latest release missing tag or zipball_url.")
-        return
-
-    remote_t = _version_tuple(tag)
-    local_t = _version_tuple(str(local_ver))
-    if remote_t <= local_t:
-        emit(f"[update] Already on latest release ({local_ver}).")
-        return
-
-    emit(f"[update] Downloading {tag} …")
+def _download_zipball_and_merge(zip_url: str, emit: Callable[[str], None]) -> bool:
     req = Request(zip_url, headers={**_github_api_headers(), "User-Agent": _user_agent()})
     try:
         with urlopen(req, timeout=180) as resp:
             body = resp.read()
     except HTTPError as e:
         emit(f"[update] Download failed HTTP {e.code}: {e.reason}")
-        return
+        return False
     except URLError as e:
         emit(f"[update] Download failed: {e.reason}")
-        return
+        return False
     except OSError as e:
         emit(f"[update] Download failed: {e}")
-        return
+        return False
 
     with NamedTemporaryFile(suffix=".zip", delete=False) as tmp:
         tmp.write(body)
@@ -189,18 +167,19 @@ def _http_release_update(repo: str, emit: Callable[[str], None]) -> None:
         with zipfile.ZipFile(zpath) as zf:
             members = zf.namelist()
             if not members:
-                emit("[update] Empty release zip.")
-                return
+                emit("[update] Empty archive.")
+                return False
             extract_dir = tempfile.mkdtemp(prefix="pokemacro-update-")
             zf.extractall(extract_dir)
             inner_root = Path(extract_dir)
             inner = next(inner_root.iterdir(), None)
             if inner is None or not inner.is_dir():
                 emit("[update] Unexpected zip layout.")
-                return
+                return False
             _merge_release_tree(inner, emit)
     except zipfile.BadZipFile:
         emit("[update] Downloaded file is not a valid zip.")
+        return False
     finally:
         if extract_dir:
             shutil.rmtree(extract_dir, ignore_errors=True)
@@ -208,6 +187,86 @@ def _http_release_update(repo: str, emit: Callable[[str], None]) -> None:
             os.unlink(zpath)
         except OSError:
             pass
+    return True
+
+
+def _http_branch_zipball_update(repo: str, emit: Callable[[str], None]) -> None:
+    info = _http_json(f"https://api.github.com/repos/{repo}", emit)
+    if not info or not isinstance(info, dict):
+        return
+    branch = str(info.get("default_branch") or "master")
+    commit_data = _http_json(
+        f"https://api.github.com/repos/{repo}/commits/{branch}",
+        emit,
+    )
+    if not commit_data or not isinstance(commit_data, dict):
+        return
+    sha = str(commit_data.get("sha") or "").strip()
+    if not sha:
+        emit("[update] Could not read latest commit on default branch.")
+        return
+    if _UPDATE_COMMIT_CACHE.is_file():
+        cached = _UPDATE_COMMIT_CACHE.read_text(encoding="utf-8", errors="replace").strip()
+        if cached == sha:
+            emit(f"[update] Already up to date ({branch} @ {sha[:7]}).")
+            return
+    zip_url = f"https://api.github.com/repos/{repo}/zipball/{branch}"
+    emit(f"[update] Downloading {branch} @ {sha[:7]} …")
+    if _download_zipball_and_merge(zip_url, emit):
+        try:
+            _UPDATE_COMMIT_CACHE.write_text(sha + "\n", encoding="utf-8")
+        except OSError as e:
+            emit(f"[update] Could not save update marker: {e}")
+
+
+def _http_release_update(repo: str, emit: Callable[[str], None]) -> None:
+    try:
+        from . import __version__ as local_ver
+    except Exception:
+        local_ver = "0.0.0"
+
+    api = f"https://api.github.com/repos/{repo}/releases/latest"
+    req = Request(api, headers={**_github_api_headers(), "User-Agent": _user_agent()})
+    release_data: dict[str, Any] | None = None
+    try:
+        with urlopen(req, timeout=60) as resp:
+            release_data = json.loads(resp.read().decode("utf-8", errors="replace"))
+    except HTTPError as e:
+        if e.code == 404:
+            emit("[update] No GitHub releases; syncing from default branch instead.")
+            _http_branch_zipball_update(repo, emit)
+            return
+        emit(f"[update] GitHub API HTTP {e.code}: {e.reason}")
+        return
+    except URLError as e:
+        emit(f"[update] GitHub API error: {e.reason}")
+        return
+    except json.JSONDecodeError as e:
+        emit(f"[update] GitHub API: invalid JSON ({e})")
+        return
+    except OSError as e:
+        emit(f"[update] GitHub API: {e}")
+        return
+
+    if not isinstance(release_data, dict):
+        _http_branch_zipball_update(repo, emit)
+        return
+
+    tag = str(release_data.get("tag_name") or "").strip()
+    zip_url = release_data.get("zipball_url")
+    if not tag or not zip_url or not isinstance(zip_url, str):
+        emit("[update] Latest release incomplete; syncing from default branch instead.")
+        _http_branch_zipball_update(repo, emit)
+        return
+
+    remote_t = _version_tuple(tag)
+    local_t = _version_tuple(str(local_ver))
+    if remote_t <= local_t:
+        emit(f"[update] Already on latest release ({local_ver}).")
+        return
+
+    emit(f"[update] Downloading {tag} …")
+    _download_zipball_and_merge(zip_url, emit)
 
 
 def _git_pull(emit: Callable[[str], None]) -> GitPullOutcome:

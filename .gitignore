@@ -6,3 +6,4 @@ __pycache__/
 .env
 missing-poopimons.txt
 ocr_text.txt
+.poke_update_commit
