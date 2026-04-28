@@ -27,7 +27,6 @@ Wishlist:
   - Regigigas
   - Tornadus
   - Thundurus
-  - Kubfu
   - Marshadow
   Special:
   - Shiny
@@ -105,9 +104,9 @@ SpriteRegion:
   RightCorner:
   - 1240
   - 700
-IsReskin: true
-IsShiny: true
-IsGradient: true
+IsReskin: false
+IsShiny: false
+IsGradient: false
 IsAny: false
 IsGood: true
 DiscordBotToken: ''
