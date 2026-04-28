@@ -26,6 +26,9 @@ _IGNORE_FROM_RELEASE = frozenset({"configs.yaml"})
 _PRESERVE_IF_EXISTS = frozenset({".env"})
 _UPDATE_COMMIT_CACHE = PROJECT_ROOT / ".poke_update_commit"
 
+# Only ``update.main`` passes this; blocks accidental ``force_http_update`` calls elsewhere.
+FORCE_UPDATE_CLI_TOKEN = object()
+
 
 def _github_repo_from_url(url: str) -> str | None:
     u = url.strip().rstrip("/")
@@ -187,36 +190,45 @@ def _download_zipball_and_merge(zip_url: str, emit: Callable[[str], None]) -> bo
     return True
 
 
-def _http_branch_zipball_update(repo: str, emit: Callable[[str], None]) -> None:
+def _http_branch_zipball_update(
+    repo: str,
+    emit: Callable[[str], None],
+    *,
+    skip_cache: bool = False,
+) -> bool:
     info = _http_json(f"https://api.github.com/repos/{repo}", emit)
     if not info or not isinstance(info, dict):
-        return
+        return False
     branch = str(info.get("default_branch") or "master")
     commit_data = _http_json(
         f"https://api.github.com/repos/{repo}/commits/{branch}",
         emit,
     )
     if not commit_data or not isinstance(commit_data, dict):
-        return
+        return False
     sha = str(commit_data.get("sha") or "").strip()
     if not sha:
         emit("[update] Could not read latest commit on default branch.")
-        return
-    if _UPDATE_COMMIT_CACHE.is_file():
+        return False
+    if not skip_cache and _UPDATE_COMMIT_CACHE.is_file():
         cached = _UPDATE_COMMIT_CACHE.read_text(encoding="utf-8", errors="replace").strip()
         if cached == sha:
             emit(f"[update] Already up to date ({branch} @ {sha[:7]}).")
-            return
+            return True
     zip_url = f"https://api.github.com/repos/{repo}/zipball/{branch}"
     emit(f"[update] Downloading {branch} @ {sha[:7]} …")
-    if _download_zipball_and_merge(zip_url, emit):
+    ok = _download_zipball_and_merge(zip_url, emit)
+    if ok:
         try:
             _UPDATE_COMMIT_CACHE.write_text(sha + "\n", encoding="utf-8")
         except OSError as e:
             emit(f"[update] Could not save update marker: {e}")
+    return ok
 
 
-def _http_release_update(repo: str, emit: Callable[[str], None]) -> None:
+def _http_release_update(
+    repo: str, emit: Callable[[str], None], *, force: bool = False
+) -> bool:
     try:
         from . import __version__ as local_ver
     except Exception:
@@ -231,39 +243,38 @@ def _http_release_update(repo: str, emit: Callable[[str], None]) -> None:
     except HTTPError as e:
         if e.code == 404:
             emit("[update] No GitHub releases; syncing from default branch instead.")
-            _http_branch_zipball_update(repo, emit)
-            return
+            return _http_branch_zipball_update(repo, emit, skip_cache=force)
         emit(f"[update] GitHub API HTTP {e.code}: {e.reason}")
-        return
+        return False
     except URLError as e:
         emit(f"[update] GitHub API error: {e.reason}")
-        return
+        return False
     except json.JSONDecodeError as e:
         emit(f"[update] GitHub API: invalid JSON ({e})")
-        return
+        return False
     except OSError as e:
         emit(f"[update] GitHub API: {e}")
-        return
+        return False
 
     if not isinstance(release_data, dict):
-        _http_branch_zipball_update(repo, emit)
-        return
+        return _http_branch_zipball_update(repo, emit, skip_cache=force)
 
     tag = str(release_data.get("tag_name") or "").strip()
     zip_url = release_data.get("zipball_url")
     if not tag or not zip_url or not isinstance(zip_url, str):
         emit("[update] Latest release incomplete; syncing from default branch instead.")
-        _http_branch_zipball_update(repo, emit)
-        return
+        return _http_branch_zipball_update(repo, emit, skip_cache=force)
 
     remote_t = _version_tuple(tag)
     local_t = _version_tuple(str(local_ver))
-    if remote_t <= local_t:
+    if not force and remote_t <= local_t:
         emit(f"[update] Already on latest release ({local_ver}).")
-        return
+        return True
 
-    emit(f"[update] Downloading {tag} …")
-    _download_zipball_and_merge(zip_url, emit)
+    emit(
+        f"[update] {'Force downloading' if force else 'Downloading'} {tag} …"
+    )
+    return _download_zipball_and_merge(zip_url, emit)
 
 
 def start_background_update(
@@ -288,6 +299,32 @@ def start_background_update(
                 "(GitHub origin URL from .git/config is used when present)."
             )
             return
-        _http_release_update(repo, emit)
+        _http_release_update(repo, emit, force=False)
 
     threading.Thread(target=work, daemon=True, name="auto-update").start()
+
+
+def force_http_update(
+    emit: Callable[[str], None],
+    *,
+    _cli: object | None = None,
+) -> bool:
+    """Re-download latest GitHub release (or branch zip) ignoring local version and commit cache.
+
+    Must be called with ``_cli=FORCE_UPDATE_CLI_TOKEN`` from ``python3 -m update.main`` only.
+    """
+    if _cli is not FORCE_UPDATE_CLI_TOKEN:
+        emit(
+            "[update] Force update is only available as: python3 -m update.main "
+            "(from the project root)."
+        )
+        return False
+    repo = _resolve_github_repo()
+    if not repo:
+        emit(
+            "[update] No repo for updates: set UPDATE_GITHUB_REPO in git_update.py, "
+            "or add owner/repo as the first line of update_repo.txt "
+            "(GitHub origin URL from .git/config is used when present)."
+        )
+        return False
+    return _http_release_update(repo, emit, force=True)
