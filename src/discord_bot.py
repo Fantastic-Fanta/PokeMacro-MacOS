@@ -156,7 +156,7 @@ class DiscordBot:
         if self.user_id:
             mention = f"<@{self.user_id}>"
         else:
-            mention = "@everyone"
+            mention = "@everyone" # Would need extra perms
         content = f"{mention} Awaiting confirmation..."
         if file is not None:
             sent_message = await self.confirmation_channel.send(content=content, embed=embed, view=view, file=file)
@@ -255,7 +255,7 @@ class DiscordBot:
     def send_confirmation_sync(
         self,
         message: str,
-        timeout_seconds: float = 600.0,
+        timeout_seconds: float = 300.0,
         file_path: Optional[str] = None,
     ) -> ConfirmationResult:
         if not self._loop or not self._loop.is_running():
