@@ -10,11 +10,14 @@ import numpy as np
 class PixelColorService:
     tolerance: int = 5
 
+    @staticmethod
+    def _grab(sct: mss.base.MSSBase, x: int, y: int) -> Tuple[int, int, int]:
+        img = np.array(sct.grab({"top": y, "left": x, "width": 1, "height": 1}))
+        return (int(img[0, 0, 2]), int(img[0, 0, 1]), int(img[0, 0, 0]))
+
     def get_pixel_color(self, x: int, y: int) -> Tuple[int, int, int]:
         with mss.mss() as sct:
-            monitor = {"top": y, "left": x, "width": 1, "height": 1}
-            img = np.array(sct.grab(monitor))
-            return (int(img[0, 0, 2]), int(img[0, 0, 1]), int(img[0, 0, 0]))
+            return self._grab(sct, x, y)
 
     def is_pixel_white(self, x: int, y: int, target_color: Tuple[int, int, int], tolerance: int = 30) -> bool:
         r, g, b = self.get_pixel_color(x, y)
@@ -31,9 +34,10 @@ class PixelColorService:
     ) -> bool:
         deadline = time.time() + timeout
         tr, tg, tb = target_color
-        while time.time() < deadline:
-            r, g, b = self.get_pixel_color(x, y)
-            if abs(r - tr) <= self.tolerance and abs(g - tg) <= self.tolerance and abs(b - tb) <= self.tolerance:
-                return True
-            time.sleep(check_interval)
+        with mss.mss() as sct:
+            while time.time() < deadline:
+                r, g, b = self._grab(sct, x, y)
+                if abs(r - tr) <= self.tolerance and abs(g - tg) <= self.tolerance and abs(b - tb) <= self.tolerance:
+                    return True
+                time.sleep(check_interval)
         return False

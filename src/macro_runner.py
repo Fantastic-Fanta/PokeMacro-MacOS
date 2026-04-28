@@ -35,6 +35,7 @@ class MacroRunner:
         _root = Path(__file__).resolve().parent.parent
         self._log_file_path = _root / "history.log"
         self._screenshot_path = _root / "screenshot.png"
+        self._ocr_text_path = _root / "ocr_text.txt"
         self._discord_bot: Optional[DiscordBot] = None
         if config.discord_bot_token and getattr(config, "discord_guild_id", 0):
             try:
@@ -74,6 +75,7 @@ class MacroRunner:
                     remove_chronos_event_phrase(self._ocr_service.extract_text(image)),
                     self._config.username,
                 )
+                self._ocr_text_path.write_text(text, encoding="utf-8")
                 is_match = self._matches_config(text)
                 if not is_match and self._config.username.lower() in text.lower():
                     self._log_username_detection(text)

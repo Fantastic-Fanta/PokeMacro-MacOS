@@ -100,6 +100,7 @@ SIDEBAR_ITEMS = [
     ("Wishlist",  "star.fill"),
     ("Positions", "mappin.and.ellipse"),
     ("Logs",      "doc.text"),
+    ("Debug",     "ladybug"),
 ]
 
 _TB_STATUS  = "PM.status"
@@ -578,6 +579,11 @@ class PokeMacroController(NSObject):
         self._pick_timer       = None
         self._pick_fields      = None
         self._pick_btn         = None
+        self._debug_timer      = None
+        self._debug_iv         = None
+        self._debug_ocr        = None
+        self._debug_ss_mtime   = 0.0
+        self._debug_ocr_mtime  = 0.0
 
         self._build_content_panels()
         self._build_window()
@@ -595,6 +601,7 @@ class PokeMacroController(NSObject):
             ("Wishlist",  self._tab_wishlist),
             ("Positions", self._tab_positions),
             ("Logs",      self._tab_logs),
+            ("Debug",     self._tab_debug),
         ]:
             view = builder()
             item = NSTabViewItem.alloc().initWithIdentifier_(label)
@@ -617,7 +624,7 @@ class PokeMacroController(NSObject):
         self._window = NSWindow.alloc().initWithContentRect_styleMask_backing_defer_(
             NSMakeRect(120, 120, 630, 580), style, NSBackingStoreBuffered, False
         )
-        self._window.setTitle_("PokeMacro")
+        self._window.setTitle_("Stingray - PokeMacro")
         self._window.setTitleVisibility_(NSWindowTitleHidden)
         self._window.setTitlebarAppearsTransparent_(True)
         self._window.setMinSize_(NSMakeSize(628, 500))
@@ -1155,6 +1162,177 @@ class PokeMacroController(NSObject):
 
         return w
 
+    # ── Debug tab ──────────────────────────────────────────────────
+    @objc.python_method
+    def _tab_debug(self) -> NSView:
+        w   = NSView.alloc().init()
+        pad = UI_PAD
+        H, V = 12.0, 10.0
+
+        # ── Screenshot card ───────────────────────────────────────
+        ss_hdr = _UI.h_stack(spacing=6.0)
+        ss_hdr.addView_inGravity_(
+            _UI.label("Screenshot", size=11.0, color=NSColor.secondaryLabelColor()),
+            NSStackViewGravityTop,
+        )
+        ss_hdr.addView_inGravity_(_UI.spacer_h(), NSStackViewGravityTop)
+        ss_hdr.setTranslatesAutoresizingMaskIntoConstraints_(False)
+
+        self._debug_iv = NSImageView.alloc().init()
+        self._debug_iv.setImageScaling_(3)  # NSImageScaleProportionallyUpOrDown
+        self._debug_iv.setTranslatesAutoresizingMaskIntoConstraints_(False)
+        self._debug_iv.heightAnchor().constraintEqualToConstant_(220.0).setActive_(True)
+
+        ss_card = _CardView.alloc().init()
+        ss_card.setWantsLayer_(True)
+        ss_card.setTranslatesAutoresizingMaskIntoConstraints_(False)
+        ss_card._refresh()
+        lyr = ss_card.layer()
+        if lyr is not None:
+            lyr.setCornerRadius_(8.0)
+            lyr.setBorderWidth_(1.0)
+        ss_card.addSubview_(ss_hdr)
+        ss_card.addSubview_(self._debug_iv)
+        ss_hdr.topAnchor().constraintEqualToAnchor_constant_(ss_card.topAnchor(), V).setActive_(True)
+        ss_hdr.leadingAnchor().constraintEqualToAnchor_constant_(ss_card.leadingAnchor(), H).setActive_(True)
+        ss_hdr.trailingAnchor().constraintEqualToAnchor_constant_(ss_card.trailingAnchor(), -H).setActive_(True)
+        self._debug_iv.topAnchor().constraintEqualToAnchor_constant_(ss_hdr.bottomAnchor(), 8.0).setActive_(True)
+        self._debug_iv.leadingAnchor().constraintEqualToAnchor_constant_(ss_card.leadingAnchor(), H).setActive_(True)
+        self._debug_iv.trailingAnchor().constraintEqualToAnchor_constant_(ss_card.trailingAnchor(), -H).setActive_(True)
+        self._debug_iv.bottomAnchor().constraintEqualToAnchor_constant_(ss_card.bottomAnchor(), -V).setActive_(True)
+
+        # ── OCR text card ─────────────────────────────────────────
+        ocr_hdr = _UI.h_stack(spacing=6.0)
+        ocr_hdr.addView_inGravity_(
+            _UI.label("OCR Text", size=11.0, color=NSColor.secondaryLabelColor()),
+            NSStackViewGravityTop,
+        )
+        ocr_hdr.addView_inGravity_(_UI.spacer_h(), NSStackViewGravityTop)
+        ocr_hdr.setTranslatesAutoresizingMaskIntoConstraints_(False)
+
+        self._debug_ocr = _AdaptiveLogTextView.alloc().initWithFrame_(NSMakeRect(0, 0, 400, 100))
+        self._debug_ocr.setEditable_(False)
+        self._debug_ocr.setSelectable_(True)
+        self._debug_ocr.setFont_(_UI.mono_font(11.0))
+        self._debug_ocr.setTextContainerInset_((6, 6))
+        self._debug_ocr.setVerticallyResizable_(True)
+        self._debug_ocr.setHorizontallyResizable_(False)
+        self._debug_ocr.setAutoresizingMask_(2)  # NSViewWidthSizable
+        self._debug_ocr.textContainer().setWidthTracksTextView_(True)
+        self._debug_ocr._apply()
+
+        ocr_sc = NSScrollView.alloc().init()
+        ocr_sc.setDocumentView_(self._debug_ocr)
+        ocr_sc.setHasVerticalScroller_(True)
+        ocr_sc.setHasHorizontalScroller_(False)
+        ocr_sc.setAutohidesScrollers_(True)
+        ocr_sc.setBorderType_(0)
+        ocr_sc.setDrawsBackground_(True)
+        ocr_sc.setWantsLayer_(True)
+        ocr_sc.layer().setCornerRadius_(6.0)
+        ocr_sc.layer().setMasksToBounds_(True)
+        ocr_sc.layer().setBorderWidth_(1.0)
+        import warnings
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            ocr_sc.layer().setBorderColor_(NSColor.separatorColor().CGColor())
+        ocr_sc.setTranslatesAutoresizingMaskIntoConstraints_(False)
+
+        ocr_card = _CardView.alloc().init()
+        ocr_card.setWantsLayer_(True)
+        ocr_card.setTranslatesAutoresizingMaskIntoConstraints_(False)
+        ocr_card._refresh()
+        lyr = ocr_card.layer()
+        if lyr is not None:
+            lyr.setCornerRadius_(8.0)
+            lyr.setBorderWidth_(1.0)
+        ocr_card.addSubview_(ocr_hdr)
+        ocr_card.addSubview_(ocr_sc)
+        ocr_hdr.topAnchor().constraintEqualToAnchor_constant_(ocr_card.topAnchor(), V).setActive_(True)
+        ocr_hdr.leadingAnchor().constraintEqualToAnchor_constant_(ocr_card.leadingAnchor(), H).setActive_(True)
+        ocr_hdr.trailingAnchor().constraintEqualToAnchor_constant_(ocr_card.trailingAnchor(), -H).setActive_(True)
+        ocr_sc.topAnchor().constraintEqualToAnchor_constant_(ocr_hdr.bottomAnchor(), 8.0).setActive_(True)
+        ocr_sc.leadingAnchor().constraintEqualToAnchor_constant_(ocr_card.leadingAnchor(), H).setActive_(True)
+        ocr_sc.trailingAnchor().constraintEqualToAnchor_constant_(ocr_card.trailingAnchor(), -H).setActive_(True)
+        ocr_sc.bottomAnchor().constraintEqualToAnchor_constant_(ocr_card.bottomAnchor(), -V).setActive_(True)
+
+        # ── Place both cards in wrapper ───────────────────────────
+        w.addSubview_(ss_card)
+        w.addSubview_(ocr_card)
+
+        ss_card.topAnchor().constraintEqualToAnchor_constant_(w.topAnchor(), pad).setActive_(True)
+        ss_card.leadingAnchor().constraintEqualToAnchor_constant_(w.leadingAnchor(), pad).setActive_(True)
+        ss_card.trailingAnchor().constraintEqualToAnchor_constant_(w.trailingAnchor(), -pad).setActive_(True)
+
+        ocr_card.topAnchor().constraintEqualToAnchor_constant_(ss_card.bottomAnchor(), 14.0).setActive_(True)
+        ocr_card.leadingAnchor().constraintEqualToAnchor_constant_(w.leadingAnchor(), pad).setActive_(True)
+        ocr_card.trailingAnchor().constraintEqualToAnchor_constant_(w.trailingAnchor(), -pad).setActive_(True)
+        ocr_card.bottomAnchor().constraintEqualToAnchor_constant_(w.bottomAnchor(), -pad).setActive_(True)
+
+        # ── Initial load + polling ────────────────────────────────
+        self._refresh_debug()
+        me = self
+
+        def _debug_tick(t: NSTimer) -> None:
+            ss_p  = PROJECT_ROOT / "screenshot.png"
+            ocr_p = PROJECT_ROOT / "ocr_text.txt"
+            changed = False
+            if ss_p.exists():
+                mt = ss_p.stat().st_mtime
+                if mt != me._debug_ss_mtime:
+                    me._debug_ss_mtime = mt
+                    changed = True
+            if ocr_p.exists():
+                mt = ocr_p.stat().st_mtime
+                if mt != me._debug_ocr_mtime:
+                    me._debug_ocr_mtime = mt
+                    changed = True
+            if changed:
+                me._refresh_debug()
+
+        self._debug_timer = NSTimer.scheduledTimerWithTimeInterval_repeats_block_(
+            0.5, True, _debug_tick
+        )
+        return w
+
+    @objc.python_method
+    def _refresh_debug(self) -> None:
+        ss_p  = PROJECT_ROOT / "screenshot.png"
+        ocr_p = PROJECT_ROOT / "ocr_text.txt"
+        debug_iv  = self._debug_iv
+        debug_ocr = self._debug_ocr
+
+        def _load() -> None:
+            img = NSImage.alloc().initWithContentsOfFile_(str(ss_p)) if ss_p.exists() else None
+            if ocr_p.exists():
+                try:
+                    text = ocr_p.read_text(encoding="utf-8")
+                except Exception:
+                    text = "(error reading file)"
+            else:
+                text = "(no OCR output yet — run the macro to populate)"
+
+            def _apply() -> None:
+                if debug_iv is not None and img is not None:
+                    debug_iv.setImage_(img)
+                if debug_ocr is not None:
+                    ts = debug_ocr.textStorage()
+                    if ts is not None:
+                        ts.replaceCharactersInRange_withAttributedString_(
+                            (0, int(ts.length())),
+                            NSMutableAttributedString.alloc().initWithString_attributes_(
+                                text,
+                                {
+                                    NSForegroundColorAttributeName: NSColor.secondaryLabelColor(),
+                                    NSFontAttributeName: _UI.mono_font(11.0),
+                                },
+                            ),
+                        )
+
+            NSOperationQueue.mainQueue().addOperationWithBlock_(_apply)
+
+        threading.Thread(target=_load, daemon=True).start()
+
     # ── Selector actions ────────────────────────────────────────────
     def switchToTab_(self, index) -> None:
         self._tab.selectTabViewItemAtIndex_(int(index))
@@ -1246,7 +1424,7 @@ class PokeMacroController(NSObject):
             self._run_item.setLabel_("Start")
             self._run_item.setEnabled_(True)
         self._set_status(
-            "Idle" if int(code) == 0 else f"Stopped (exit {int(code)})",
+            "Idle" if int(code) == 0 else f"Stopped",
             _Colors.MUTED, _Colors.IDLE,
         )
 
