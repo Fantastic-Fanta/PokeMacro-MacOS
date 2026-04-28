@@ -1,13 +1,3 @@
-"""Discord bot interface for the dex scanner.
-
-Slash command:
-    /scan-dex page1:<attachment> page2:<attachment>
-
-The command downloads the two screenshots, runs the existing dex scanner
-logic, writes the results to ``missing-pokemons.txt`` at the repository
-root, and uploads that file back to Discord.
-"""
-
 from __future__ import annotations
 
 import logging
@@ -71,6 +61,7 @@ class DexScannerBot(commands.Bot):
 
     async def setup_hook(self) -> None:
         # Register the /scan-dex command on the bot's command tree
+        # Necessary?
         @self.tree.command(
             name="scan-dex",
             description="Poopidex scanner",
