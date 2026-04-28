@@ -5,14 +5,13 @@ import os
 import queue
 import re
 import shutil
-import subprocess
 import tempfile
 import threading
 import zipfile
 from collections.abc import Callable
 from pathlib import Path
 from tempfile import NamedTemporaryFile
-from typing import Any, Literal
+from typing import Any
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
@@ -26,8 +25,6 @@ UPDATE_GITHUB_REPO: str | None = "Fantastic-Fanta/PokeMacro-MacOS"
 _IGNORE_FROM_RELEASE = frozenset({"configs.yaml"})
 _PRESERVE_IF_EXISTS = frozenset({".env"})
 _UPDATE_COMMIT_CACHE = PROJECT_ROOT / ".poke_update_commit"
-
-GitPullOutcome = Literal["ok", "fail", "unavailable"]
 
 
 def _github_repo_from_url(url: str) -> str | None:
@@ -269,40 +266,6 @@ def _http_release_update(repo: str, emit: Callable[[str], None]) -> None:
     _download_zipball_and_merge(zip_url, emit)
 
 
-def _git_pull(emit: Callable[[str], None]) -> GitPullOutcome:
-    root = PROJECT_ROOT
-    if not (root / ".git").is_dir():
-        return "unavailable"
-    try:
-        r = subprocess.run(
-            ["git", "pull", "--ff-only"],
-            cwd=str(root),
-            capture_output=True,
-            text=True,
-            timeout=120,
-        )
-        text = (r.stdout or "").strip() or (r.stderr or "").strip()
-        if not text and r.returncode == 0:
-            text = "Already up to date."
-        for line in (text.splitlines() if text else [f"(exit {r.returncode})"]):
-            emit(f"[update] {line}")
-        if r.returncode == 0 and text and "already up to date" not in text.lower():
-            emit("[update] Restart the app to load any new code.")
-        if r.returncode != 0:
-            emit(f"[update] git pull failed (exit {r.returncode})")
-            return "fail"
-        return "ok"
-    except FileNotFoundError:
-        emit("[update] `git` not on PATH; trying GitHub release download.")
-        return "unavailable"
-    except subprocess.TimeoutExpired:
-        emit("[update] git pull timed out.")
-        return "fail"
-    except OSError as e:
-        emit(f"[update] {e}")
-        return "fail"
-
-
 def start_background_update(
     *,
     log_queue: queue.Queue[str] | None = None,
@@ -317,18 +280,13 @@ def start_background_update(
             print(s, flush=True)
 
     def work() -> None:
-        outcome = _git_pull(emit)
-        if outcome == "ok":
-            return
-        if outcome == "fail":
-            return
         repo = _resolve_github_repo()
         if not repo:
-            if not (PROJECT_ROOT / ".git").is_dir():
-                emit(
-                    "[update] No git-derived repo: set UPDATE_GITHUB_REPO in git_update.py "
-                    "or add owner/repo as the first line of update_repo.txt."
-                )
+            emit(
+                "[update] No repo for updates: set UPDATE_GITHUB_REPO in git_update.py, "
+                "or add owner/repo as the first line of update_repo.txt "
+                "(GitHub origin URL from .git/config is used when present)."
+            )
             return
         _http_release_update(repo, emit)
 
