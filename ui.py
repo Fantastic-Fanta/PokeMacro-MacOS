@@ -19,12 +19,11 @@ from AppKit import (
     NSBackingStoreBuffered,
     NSBezelStyleRounded,
     NSButton, NSButtonTypeMomentaryPushIn, NSButtonTypeSwitch,
-    NSCenterTextAlignment,
-    NSColor, NSCommandKeyMask,
+    NSCenterTextAlignment, NSRightTextAlignment,
+    NSColor, NSCommandKeyMask, NSShiftKeyMask,
     NSEdgeInsets, NSFont,
     NSFocusRingTypeNone,
     NSFontAttributeName, NSForegroundColorAttributeName,
-    NSGridView, NSGridRowAlignmentFirstBaseline,
     NSImage, NSImageSymbolConfiguration, NSImageView,
     NSLayoutAttributeCenterX, NSLayoutAttributeCenterY, NSLayoutAttributeLeading,
     NSLayoutPriorityDefaultHigh,
@@ -83,7 +82,6 @@ SIDEBAR_W  = 200.0
 UI_PAD     = 20.0
 LABEL_W    = 155.0
 FIELD_W    = 80.0
-BADGE_W    = 16.0
 PICK_BTN_W = 26.0
 # Inner padding for _CardView contents — keep in sync with _UI.box.
 _CARD_INNER_PAD_H = 12.0
@@ -1110,18 +1108,24 @@ class PokeMacroController(NSObject):
     @objc.python_method
     def _make_coord_grid(
         self, rows: list[tuple[str, str]]
-    ) -> tuple[NSGridView, dict[str, tuple[NSTextField, NSTextField]]]:
-        gv = NSGridView.alloc().init()
-        gv.setColumnSpacing_(4.0)
-        gv.setRowSpacing_(6.0)
+    ) -> tuple[NSStackView, dict[str, tuple[NSTextField, NSTextField]]]:
+        outer = _UI.v_stack(spacing=6.0)
         result: dict[str, tuple[NSTextField, NSTextField]] = {}
         for key, label_text in rows:
             la = _UI.label(label_text)
+            la.setTranslatesAutoresizingMaskIntoConstraints_(False)
+            la.widthAnchor().constraintEqualToConstant_(LABEL_W).setActive_(True)
+            la.setContentHuggingPriority_forOrientation_(
+                NSLayoutPriorityDefaultHigh, NSUserInterfaceLayoutOrientationHorizontal
+            )
+
             xb = _UI.label("X", size=11.0, color=NSColor.secondaryLabelColor())
             yb = _UI.label("Y", size=11.0, color=NSColor.secondaryLabelColor())
             xf = _UI.field(width=FIELD_W)
+            xf.setAlignment_(NSRightTextAlignment)
             xf.setStringValue_("0")
             yf = _UI.field(width=FIELD_W)
+            yf.setAlignment_(NSRightTextAlignment)
             yf.setStringValue_("0")
             pb = _UI.button("", self, b'pickCoord:')
             scope_img = _UI.sf("scope", "Pick coordinate", size=13.0)
@@ -1131,15 +1135,27 @@ class PokeMacroController(NSObject):
             pb.widthAnchor().constraintEqualToConstant_(PICK_BTN_W).setActive_(True)
             self._pick_map[id(pb)] = (xf, yf)
             result[key] = (xf, yf)
-            row = gv.addRowWithViews_([la, xb, xf, yb, yf, pb])
-            row.setRowAlignment_(NSGridRowAlignmentFirstBaseline)
-        gv.columnAtIndex_(0).setWidth_(LABEL_W)
-        gv.columnAtIndex_(1).setWidth_(BADGE_W)
-        gv.columnAtIndex_(2).setWidth_(FIELD_W)
-        gv.columnAtIndex_(3).setWidth_(BADGE_W)
-        gv.columnAtIndex_(4).setWidth_(FIELD_W)
-        gv.columnAtIndex_(5).setWidth_(PICK_BTN_W)
-        return gv, result
+
+            coords = _UI.h_stack(spacing=4.0)
+            coords.addView_inGravity_(xb, NSStackViewGravityTop)
+            coords.addView_inGravity_(xf, NSStackViewGravityTop)
+            coords.addView_inGravity_(yb, NSStackViewGravityTop)
+            coords.addView_inGravity_(yf, NSStackViewGravityTop)
+            coords.addView_inGravity_(pb, NSStackViewGravityTop)
+            coords.setContentHuggingPriority_forOrientation_(
+                NSLayoutPriorityDefaultHigh, NSUserInterfaceLayoutOrientationHorizontal
+            )
+
+            spacer = _UI.spacer_h()
+            row = _UI.h_stack(spacing=12.0)
+            row.addView_inGravity_(la, NSStackViewGravityTop)
+            row.addView_inGravity_(spacer, NSStackViewGravityTop)
+            row.addView_inGravity_(coords, NSStackViewGravityTop)
+            row.setDistribution_(NSStackViewDistributionFill)
+
+            outer.addView_inGravity_(row, NSStackViewGravityTop)
+
+        return outer, result
 
     @objc.python_method
     def _tab_positions(self) -> NSView:
@@ -2187,6 +2203,36 @@ class PokeMacroController(NSObject):
         app_item.setSubmenu_(sm)
         app_item.setTitle_("PokeMacro")
         bar.addItem_(app_item)
+
+        # Standard Edit menu (Cut/Copy/Paste/Select All). Cmd+V routes through the Paste
+        # item — without these, Cocoa often does not deliver paste to embedded text fields.
+        edit = NSMenu.alloc().initWithTitle_("Edit")
+
+        def _resp_item(title: str, action: bytes, key: str, mod: int = NSCommandKeyMask) -> None:
+            mi = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_(title, action, key)
+            mi.setKeyEquivalentModifierMask_(mod)
+            edit.addItem_(mi)
+
+        _resp_item("Undo", b"undo:", "z")
+        _resp_item("Redo", b"redo:", "Z", NSCommandKeyMask | NSShiftKeyMask)
+        edit.addItem_(NSMenuItem.separatorItem())
+        _resp_item("Cut", b"cut:", "x")
+        _resp_item("Copy", b"copy:", "c")
+        _resp_item("Paste", b"paste:", "v")
+        _resp_item(
+            "Paste and Match Style",
+            b"pasteAsPlainText:",
+            "v",
+            NSCommandKeyMask | NSShiftKeyMask,
+        )
+        edit.addItem_(NSMenuItem.separatorItem())
+        _resp_item("Select All", b"selectAll:", "a")
+
+        edit_top = NSMenuItem.alloc().init()
+        edit_top.setSubmenu_(edit)
+        edit_top.setTitle_("Edit")
+        bar.addItem_(edit_top)
+
         app.setMainMenu_(bar)
 
     # ── Entry point ────────────────────────────────────────────────

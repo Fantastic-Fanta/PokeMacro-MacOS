@@ -6,7 +6,6 @@ Wishlist:
   - Phantom
   - Glitch
   - Shadow
-  - Poop
   Gradients:
   - Nyx
   - Nereus
@@ -106,9 +105,9 @@ SpriteRegion:
   RightCorner:
   - 1240
   - 700
-IsReskin: false
-IsShiny: false
-IsGradient: false
+IsReskin: true
+IsShiny: true
+IsGradient: true
 IsAny: false
 IsGood: true
 DiscordBotToken: ''

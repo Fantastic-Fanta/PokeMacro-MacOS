@@ -18,9 +18,8 @@ class ConfirmationResult(Enum):
 
 class DiscordBot:
     def __init__(self, token: str, guild_id: int):
-        intents = discord.Intents.default()
-        intents.message_content = True
-        self.client = discord.Client(intents=intents)
+        # Avoid message_content intent (privileged); this bot uses interactions/send only.
+        self.client = discord.Client(intents=discord.Intents.default())
         self.tree = app_commands.CommandTree(self.client)
         self.token = token
         self.guild_id = guild_id
@@ -245,7 +244,11 @@ class DiscordBot:
 
     def stop(self):
         if self._loop and self._loop.is_running():
-            asyncio.run_coroutine_threadsafe(self.client.close(), self._loop)
+            fut = asyncio.run_coroutine_threadsafe(self.client.close(), self._loop)
+            try:
+                fut.result(timeout=15)
+            except Exception:
+                pass
         if self._thread:
             self._thread.join(timeout=5)
 
