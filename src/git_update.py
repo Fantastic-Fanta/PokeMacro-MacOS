@@ -5,6 +5,7 @@ import os
 import queue
 import re
 import shutil
+import sys
 import tempfile
 import threading
 import zipfile
@@ -13,9 +14,12 @@ from pathlib import Path
 from tempfile import NamedTemporaryFile
 from typing import Any
 from urllib.error import HTTPError, URLError
-from urllib.request import Request, urlopen
+from urllib.request import Request
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+from github_http import emit_tls_hint, urlopen_tls
 
 # Default for zip installs; overridden by update_repo.txt (first line: owner/repo)
 # or by remote origin in .git/config when present.
@@ -97,12 +101,13 @@ def _user_agent() -> str:
 def _http_json(url: str, emit: Callable[[str], None]) -> Any | None:
     req = Request(url, headers={**_github_api_headers(), "User-Agent": _user_agent()})
     try:
-        with urlopen(req, timeout=60) as resp:
+        with urlopen_tls(req, timeout=60, emit=emit) as resp:
             return json.loads(resp.read().decode("utf-8", errors="replace"))
     except HTTPError as e:
         emit(f"[update] GitHub API HTTP {e.code}: {e.reason}")
     except URLError as e:
         emit(f"[update] GitHub API error: {e.reason}")
+        emit_tls_hint(emit, e)
     except json.JSONDecodeError as e:
         emit(f"[update] GitHub API: invalid JSON ({e})")
     except OSError as e:
@@ -144,13 +149,14 @@ def _merge_release_tree(src_root: Path, emit: Callable[[str], None]) -> None:
 def _download_zipball_and_merge(zip_url: str, emit: Callable[[str], None]) -> bool:
     req = Request(zip_url, headers={**_github_api_headers(), "User-Agent": _user_agent()})
     try:
-        with urlopen(req, timeout=180) as resp:
+        with urlopen_tls(req, timeout=180, emit=emit) as resp:
             body = resp.read()
     except HTTPError as e:
         emit(f"[update] Download failed HTTP {e.code}: {e.reason}")
         return False
     except URLError as e:
         emit(f"[update] Download failed: {e.reason}")
+        emit_tls_hint(emit, e)
         return False
     except OSError as e:
         emit(f"[update] Download failed: {e}")
@@ -235,7 +241,7 @@ def _http_release_update(
     req = Request(api, headers={**_github_api_headers(), "User-Agent": _user_agent()})
     release_data: dict[str, Any] | None = None
     try:
-        with urlopen(req, timeout=60) as resp:
+        with urlopen_tls(req, timeout=60, emit=emit) as resp:
             release_data = json.loads(resp.read().decode("utf-8", errors="replace"))
     except HTTPError as e:
         if e.code == 404:
@@ -245,6 +251,7 @@ def _http_release_update(
         return False
     except URLError as e:
         emit(f"[update] GitHub API error: {e.reason}")
+        emit_tls_hint(emit, e)
         return False
     except json.JSONDecodeError as e:
         emit(f"[update] GitHub API: invalid JSON ({e})")

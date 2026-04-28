@@ -10,6 +10,23 @@ import discord
 from discord import app_commands
 
 
+def _http_connector():
+    """Use same TLS trust as GitHub updater (certifi, SSL_CERT_FILE, POKEMACRO_INSECURE_SSL)."""
+    try:
+        import sys
+
+        import aiohttp
+
+        root = Path(__file__).resolve().parent.parent
+        if str(root) not in sys.path:
+            sys.path.insert(0, str(root))
+        from github_http import ssl_context
+
+        return aiohttp.TCPConnector(ssl=ssl_context(emit=None))
+    except Exception:
+        return None
+
+
 class ConfirmationResult(Enum):
     KEEP = "keep"
     ROLL = "roll"
@@ -19,7 +36,12 @@ class ConfirmationResult(Enum):
 class DiscordBot:
     def __init__(self, token: str, guild_id: int):
         # Avoid message_content intent (privileged); this bot uses interactions/send only.
-        self.client = discord.Client(intents=discord.Intents.default())
+        intents = discord.Intents.default()
+        connector = _http_connector()
+        if connector is not None:
+            self.client = discord.Client(intents=intents, connector=connector)
+        else:
+            self.client = discord.Client(intents=intents)
         self.tree = app_commands.CommandTree(self.client)
         self.token = token
         self.guild_id = guild_id

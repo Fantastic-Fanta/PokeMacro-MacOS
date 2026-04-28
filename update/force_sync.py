@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import os
 import shutil
+import sys
 import tempfile
 import zipfile
 from collections.abc import Callable
@@ -10,10 +11,13 @@ from pathlib import Path
 from tempfile import NamedTemporaryFile
 from typing import Any
 from urllib.error import HTTPError, URLError
-from urllib.request import Request, urlopen
+from urllib.request import Request
 
 # Directory that contains ``update/``, ``configs.yaml``, etc.
 ROOT = Path(__file__).resolve().parent.parent
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+from github_http import emit_tls_hint, urlopen_tls
 
 DEFAULT_GITHUB_REPO = "Fantastic-Fanta/PokeMacro-MacOS"
 _IGNORE = frozenset({"configs.yaml"})
@@ -82,12 +86,13 @@ def _headers() -> dict[str, str]:
 def _http_json(url: str, emit: Callable[[str], None]) -> Any | None:
     req = Request(url, headers={**_headers(), "User-Agent": _USER_AGENT})
     try:
-        with urlopen(req, timeout=60) as resp:
+        with urlopen_tls(req, timeout=60, emit=emit) as resp:
             return json.loads(resp.read().decode("utf-8", errors="replace"))
     except HTTPError as e:
         emit(f"[force-update] GitHub API HTTP {e.code}: {e.reason}")
     except URLError as e:
         emit(f"[force-update] GitHub API error: {e.reason}")
+        emit_tls_hint(emit, e)
     except json.JSONDecodeError as e:
         emit(f"[force-update] GitHub API: invalid JSON ({e})")
     except OSError as e:
@@ -120,13 +125,14 @@ def _merge_tree(src: Path, emit: Callable[[str], None]) -> None:
 def _download_zip(zip_url: str, emit: Callable[[str], None]) -> bool:
     req = Request(zip_url, headers={**_headers(), "User-Agent": _USER_AGENT})
     try:
-        with urlopen(req, timeout=180) as resp:
+        with urlopen_tls(req, timeout=180, emit=emit) as resp:
             body = resp.read()
     except HTTPError as e:
         emit(f"[force-update] Download failed HTTP {e.code}: {e.reason}")
         return False
     except URLError as e:
         emit(f"[force-update] Download failed: {e.reason}")
+        emit_tls_hint(emit, e)
         return False
     except OSError as e:
         emit(f"[force-update] Download failed: {e}")
@@ -201,7 +207,7 @@ def run_brutal_force(emit: Callable[[str], None]) -> bool:
     api = f"https://api.github.com/repos/{repo}/releases/latest"
     req = Request(api, headers={**_headers(), "User-Agent": _USER_AGENT})
     try:
-        with urlopen(req, timeout=60) as resp:
+        with urlopen_tls(req, timeout=60, emit=emit) as resp:
             data = json.loads(resp.read().decode("utf-8", errors="replace"))
     except HTTPError as e:
         if e.code == 404:
@@ -211,6 +217,7 @@ def run_brutal_force(emit: Callable[[str], None]) -> bool:
         return False
     except URLError as e:
         emit(f"[force-update] GitHub API error: {e.reason}")
+        emit_tls_hint(emit, e)
         return False
     except json.JSONDecodeError as e:
         emit(f"[force-update] GitHub API: invalid JSON ({e})")
