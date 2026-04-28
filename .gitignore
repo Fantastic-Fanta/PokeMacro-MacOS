@@ -4,3 +4,5 @@ ENV/
 .DS_Store
 __pycache__/
 .env
+missing-poopimons.txt
+ocr_text.txt
