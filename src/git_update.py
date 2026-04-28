@@ -18,53 +18,73 @@ from urllib.request import Request, urlopen
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
-# Non-git installs: set POKEMACRO_GITHUB_REPO=owner/repo or add a single line owner/repo
-# in update_repo.txt at the project root. Expects published GitHub Releases (tag e.g. v0.1.5).
-# Optional: GITHUB_TOKEN or POKEMACRO_GITHUB_TOKEN for private repos.
+# Default for zip installs; overridden by update_repo.txt (first line: owner/repo)
+# or by remote origin in .git/config when present.
+UPDATE_GITHUB_REPO: str | None = "Fantastic-Fanta/PokeMacro-MacOS"
 
-_PRESERVE_IF_EXISTS = frozenset({"configs.yaml", ".env"})
+# Never install these from a release (local config and secrets stay untouched).
+_IGNORE_FROM_RELEASE = frozenset({"configs.yaml"})
+_PRESERVE_IF_EXISTS = frozenset({".env"})
 
 GitPullOutcome = Literal["ok", "fail", "unavailable"]
 
 
-def _should_skip_all() -> bool:
-    v = (os.environ.get("POKEMACRO_SKIP_AUTO_UPDATE") or "").strip().lower()
-    return v in ("1", "true", "yes")
-
-
-def _should_skip_git() -> bool:
-    v = (os.environ.get("POKEMACRO_SKIP_GIT_UPDATE") or "").strip().lower()
-    return v in ("1", "true", "yes")
-
-
-def _should_skip_http() -> bool:
-    v = (os.environ.get("POKEMACRO_SKIP_HTTP_UPDATE") or "").strip().lower()
-    return v in ("1", "true", "yes")
-
-
-def _resolve_github_repo() -> str | None:
-    raw = (os.environ.get("POKEMACRO_GITHUB_REPO") or "").strip()
-    if raw and "/" in raw and raw.count("/") == 1 and ".." not in raw:
-        return raw
-    path = PROJECT_ROOT / "update_repo.txt"
-    if path.is_file():
-        line = path.read_text(encoding="utf-8", errors="replace").strip().splitlines()
-        if line:
-            candidate = line[0].strip()
-            if candidate and "/" in candidate and candidate.count("/") == 1 and ".." not in candidate:
-                return candidate
+def _github_repo_from_url(url: str) -> str | None:
+    u = url.strip().rstrip("/")
+    if u.endswith(".git"):
+        u = u[:-4]
+    if u.startswith("git@github.com:"):
+        rest = u.split(":", 1)[1]
+        return rest if "/" in rest and rest.count("/") == 1 and ".." not in rest else None
+    if "github.com/" in u:
+        part = u.split("github.com/", 1)[1].split("/")[0:2]
+        if len(part) == 2:
+            return f"{part[0]}/{part[1]}" if ".." not in part[0] + part[1] else None
     return None
 
 
-def _auth_headers() -> dict[str, str]:
-    tok = (os.environ.get("POKEMACRO_GITHUB_TOKEN") or os.environ.get("GITHUB_TOKEN") or "").strip()
-    h = {
+def _parse_github_repo_from_git_config() -> str | None:
+    cfg = PROJECT_ROOT / ".git" / "config"
+    if not cfg.is_file():
+        return None
+    current: str | None = None
+    for raw in cfg.read_text(encoding="utf-8", errors="replace").splitlines():
+        line = raw.strip()
+        if line.startswith("[") and line.endswith("]"):
+            current = line[1:-1].strip()
+            continue
+        if current == 'remote "origin"' and line.startswith("url ="):
+            url = line.split("=", 1)[1].strip()
+            return _github_repo_from_url(url)
+    return None
+
+
+def _resolve_github_repo() -> str | None:
+    path = PROJECT_ROOT / "update_repo.txt"
+    if path.is_file():
+        lines = path.read_text(encoding="utf-8", errors="replace").strip().splitlines()
+        if lines:
+            candidate = lines[0].strip()
+            if candidate and "/" in candidate and candidate.count("/") == 1 and ".." not in candidate:
+                return candidate
+    parsed = _parse_github_repo_from_git_config()
+    if parsed:
+        return parsed
+    if (
+        UPDATE_GITHUB_REPO
+        and "/" in UPDATE_GITHUB_REPO
+        and UPDATE_GITHUB_REPO.count("/") == 1
+        and ".." not in UPDATE_GITHUB_REPO
+    ):
+        return UPDATE_GITHUB_REPO.strip()
+    return None
+
+
+def _github_api_headers() -> dict[str, str]:
+    return {
         "Accept": "application/vnd.github+json",
         "X-GitHub-Api-Version": "2022-11-28",
     }
-    if tok:
-        h["Authorization"] = f"Bearer {tok}"
-    return h
 
 
 def _user_agent() -> str:
@@ -77,7 +97,7 @@ def _user_agent() -> str:
 
 
 def _http_json(url: str, emit: Callable[[str], None]) -> Any | None:
-    req = Request(url, headers={**_auth_headers(), "User-Agent": _user_agent()})
+    req = Request(url, headers={**_github_api_headers(), "User-Agent": _user_agent()})
     try:
         with urlopen(req, timeout=60) as resp:
             return json.loads(resp.read().decode("utf-8", errors="replace"))
@@ -113,6 +133,8 @@ def _merge_release_tree(src_root: Path, emit: Callable[[str], None]) -> None:
             continue
         if rel.suffix == ".pyc":
             continue
+        if rel.name in _IGNORE_FROM_RELEASE:
+            continue
         dest = PROJECT_ROOT / rel
         if rel.name in _PRESERVE_IF_EXISTS and dest.exists():
             continue
@@ -145,7 +167,7 @@ def _http_release_update(repo: str, emit: Callable[[str], None]) -> None:
         return
 
     emit(f"[update] Downloading {tag} …")
-    req = Request(zip_url, headers={**_auth_headers(), "User-Agent": _user_agent()})
+    req = Request(zip_url, headers={**_github_api_headers(), "User-Agent": _user_agent()})
     try:
         with urlopen(req, timeout=180) as resp:
             body = resp.read()
@@ -189,8 +211,6 @@ def _http_release_update(repo: str, emit: Callable[[str], None]) -> None:
 
 
 def _git_pull(emit: Callable[[str], None]) -> GitPullOutcome:
-    if _should_skip_git():
-        return "unavailable"
     root = PROJECT_ROOT
     if not (root / ".git").is_dir():
         return "unavailable"
@@ -214,7 +234,7 @@ def _git_pull(emit: Callable[[str], None]) -> GitPullOutcome:
             return "fail"
         return "ok"
     except FileNotFoundError:
-        emit("[update] `git` not on PATH; trying release download if configured.")
+        emit("[update] `git` not on PATH; trying GitHub release download.")
         return "unavailable"
     except subprocess.TimeoutExpired:
         emit("[update] git pull timed out.")
@@ -238,21 +258,17 @@ def start_background_update(
             print(s, flush=True)
 
     def work() -> None:
-        if _should_skip_all():
-            return
         outcome = _git_pull(emit)
         if outcome == "ok":
             return
         if outcome == "fail":
             return
-        if _should_skip_http():
-            return
         repo = _resolve_github_repo()
         if not repo:
-            if outcome == "unavailable" and not (PROJECT_ROOT / ".git").is_dir():
+            if not (PROJECT_ROOT / ".git").is_dir():
                 emit(
-                    "[update] For updates without git, set POKEMACRO_GITHUB_REPO=owner/repo "
-                    "or add owner/repo as the first line of update_repo.txt (GitHub Releases)."
+                    "[update] No git-derived repo: set UPDATE_GITHUB_REPO in git_update.py "
+                    "or add owner/repo as the first line of update_repo.txt."
                 )
             return
         _http_release_update(repo, emit)
