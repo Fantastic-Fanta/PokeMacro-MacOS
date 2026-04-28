@@ -1,4 +1,5 @@
 import asyncio
+import sys
 import threading
 import time
 import uuid
@@ -18,7 +19,12 @@ def _http_connector():
         from .github_http import ssl_context
 
         return aiohttp.TCPConnector(ssl=ssl_context(emit=None))
-    except Exception:
+    except Exception as e:
+        print(
+            f"[DiscordBot] Could not build aiohttp TLS connector ({e!r}); "
+            "using discord default (often breaks on macOS/python.org without certifi).",
+            file=sys.stderr,
+        )
         return None
 
 
@@ -250,10 +256,19 @@ class DiscordBot:
                 asyncio.set_event_loop(self._loop)
                 self._loop.run_until_complete(self.client.start(self.token))
             except BaseException:
-                import sys
                 import traceback
 
+                err = sys.exc_info()[1]
                 traceback.print_exc(file=sys.stderr)
+                try:
+                    from .github_http import emit_tls_hint
+
+                    emit_tls_hint(lambda s: print(s, file=sys.stderr), err)
+                    cause = getattr(err, "__cause__", None)
+                    if cause is not None:
+                        emit_tls_hint(lambda s: print(s, file=sys.stderr), cause)
+                except Exception:
+                    pass
                 sys.stderr.flush()
 
         self._thread = threading.Thread(target=run_bot, daemon=True)
