@@ -182,6 +182,8 @@ class _UI:
         f = NSTextField.alloc().init()
         f.setBezeled_(True)
         f.setStringValue_("")
+        f.cell().setScrollable_(False)
+        f.cell().setLineBreakMode_(NSLineBreakByTruncatingTail)
         if placeholder:
             f.setPlaceholderString_(placeholder)
         if width is not None:
@@ -478,10 +480,22 @@ class SubprocessManager:
         return self._proc is not None and self._proc.poll() is None
 
 
-# ── Adaptive log view ──────────────────────────────────────────────────
+# ── Adaptive text views ────────────────────────────────────────────────
 class _AdaptiveLogTextView(NSTextView):
     def viewDidChangeEffectiveAppearance(self) -> None:
         objc.super(_AdaptiveLogTextView, self).viewDidChangeEffectiveAppearance()
+        self._apply()
+
+    @objc.python_method
+    def _apply(self) -> None:
+        self.setDrawsBackground_(True)
+        self.setBackgroundColor_(NSColor.textBackgroundColor())
+        self.setTextColor_(NSColor.textColor())
+
+
+class _AdaptiveWishTextView(NSTextView):
+    def viewDidChangeEffectiveAppearance(self) -> None:
+        objc.super(_AdaptiveWishTextView, self).viewDidChangeEffectiveAppearance()
         self._apply()
 
     @objc.python_method
@@ -592,17 +606,20 @@ class PokeMacroController(NSObject):
             | NSWindowStyleMaskFullSizeContentView
         )
         self._window = NSWindow.alloc().initWithContentRect_styleMask_backing_defer_(
-            NSMakeRect(120, 120, 960, 680), style, NSBackingStoreBuffered, False
+            NSMakeRect(120, 120, 630, 580), style, NSBackingStoreBuffered, False
         )
         self._window.setTitle_("PokeMacro")
         self._window.setTitleVisibility_(NSWindowTitleHidden)
         self._window.setTitlebarAppearsTransparent_(True)
-        self._window.setMinSize_(NSMakeSize(900, 620))
+        self._window.setMinSize_(NSMakeSize(628, 500))
         self._window.setDelegate_(self)
         self._window.setReleasedWhenClosed_(False)
         self._build_toolbar()
         self._window.setToolbar_(self._toolbar)
         self._window.setContentView_(self._build_split_view())
+        guide = self._window.contentLayoutGuide()
+        self._sidebar_sv.topAnchor().constraintEqualToAnchor_(guide.topAnchor()).setActive_(True)
+        self._tab.topAnchor().constraintEqualToAnchor_(guide.topAnchor()).setActive_(True)
         self._window.makeKeyAndOrderFront_(None)
 
     # ── Toolbar ────────────────────────────────────────────────────
@@ -675,6 +692,13 @@ class PokeMacroController(NSObject):
         eff.setMaterial_(NSVisualEffectMaterialSidebar)
         eff.setState_(NSVisualEffectStateActive)
         eff.setWantsLayer_(True)
+        # Round only the two left corners to match the window corner radius.
+        # CACornerMask: kCALayerMinXMinYCorner=1 (bottom-left),
+        #               kCALayerMinXMaxYCorner=4 (top-left) in CA coords (Y-up).
+        # masksToBounds is intentionally NOT set — it hard-clips the blur
+        # material along straight edges and creates a visible seam.
+        eff.layer().setCornerRadius_(10.0)
+        eff.layer().setMaskedCorners_(1 | 4)
         eff.setTranslatesAutoresizingMaskIntoConstraints_(False)
         eff.widthAnchor().constraintEqualToConstant_(SIDEBAR_W).setActive_(True)
         eff.setContentHuggingPriority_forOrientation_(
@@ -683,7 +707,10 @@ class PokeMacroController(NSObject):
 
         sidebar_scroll = self._build_sidebar()
         eff.addSubview_(sidebar_scroll)
-        _UI.pin_edges(sidebar_scroll, eff)
+        sidebar_scroll.setTranslatesAutoresizingMaskIntoConstraints_(False)
+        sidebar_scroll.leadingAnchor().constraintEqualToAnchor_(eff.leadingAnchor()).setActive_(True)
+        sidebar_scroll.trailingAnchor().constraintEqualToAnchor_(eff.trailingAnchor()).setActive_(True)
+        sidebar_scroll.bottomAnchor().constraintEqualToAnchor_(eff.bottomAnchor()).setActive_(True)
 
         sep = NSView.alloc().init()
         sep.setTranslatesAutoresizingMaskIntoConstraints_(False)
@@ -699,7 +726,10 @@ class PokeMacroController(NSObject):
             1, NSUserInterfaceLayoutOrientationHorizontal
         )
         content.addSubview_(self._tab)
-        _UI.pin_edges(self._tab, content)
+        self._tab.setTranslatesAutoresizingMaskIntoConstraints_(False)
+        self._tab.leadingAnchor().constraintEqualToAnchor_(content.leadingAnchor()).setActive_(True)
+        self._tab.trailingAnchor().constraintEqualToAnchor_(content.trailingAnchor()).setActive_(True)
+        self._tab.bottomAnchor().constraintEqualToAnchor_(content.bottomAnchor()).setActive_(True)
 
         h = _UI.h_stack(spacing=0.0)
         h.setDistribution_(NSStackViewDistributionFill)
@@ -739,6 +769,7 @@ class PokeMacroController(NSObject):
         sv.setBorderType_(0)
         sv.setDrawsBackground_(False)
         sv.setTranslatesAutoresizingMaskIntoConstraints_(False)
+        self._sidebar_sv = sv
         return sv
 
     # ── General tab ────────────────────────────────────────────────
@@ -817,20 +848,49 @@ class PokeMacroController(NSObject):
             NSStackViewGravityTop,
         )
         self._wish: dict[str, NSTextView] = {}
-        for name, h in [("Reskins", 100), ("Gradients", 100), ("Roamings", 160), ("Special", 160)]:
+        for name, h in [("Reskins", 80), ("Gradients", 80), ("Roamings", 140), ("Special", 140)]:
             inner = _UI.v_stack(spacing=6.0)
             inner.addView_inGravity_(
-                _UI.label(name, size=11.0, color=NSColor.secondaryLabelColor()),
+                _UI.label(name, size=12.0, bold=True),
                 NSStackViewGravityTop,
             )
-            tv = NSTextView.alloc().init()
-            tv.setMinSize_((0, 0))
-            tv.setMaxSize_((1e7, 1e7))
+
+            sc = NSScrollView.alloc().init()
+            sc.setHasVerticalScroller_(True)
+            sc.setHasHorizontalScroller_(False)
+            sc.setAutohidesScrollers_(True)
+            sc.setBorderType_(0)  # no AppKit bezel — border drawn via layer
+            sc.setDrawsBackground_(True)
+            sc.setWantsLayer_(True)
+            sc.layer().setCornerRadius_(5.0)
+            sc.layer().setMasksToBounds_(True)
+            sc.layer().setBorderWidth_(1.0)
+            import warnings
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")
+                sc.layer().setBorderColor_(NSColor.separatorColor().CGColor())
+            sc.setTranslatesAutoresizingMaskIntoConstraints_(False)
+            sc.heightAnchor().constraintEqualToConstant_(h).setActive_(True)
+
+            tv = _AdaptiveWishTextView.alloc().initWithFrame_(
+                NSMakeRect(0, 0, 200, h)
+            )
+            tv.setMinSize_(NSMakeSize(0, h))
+            tv.setMaxSize_(NSMakeSize(1e7, 1e7))
             tv.setVerticallyResizable_(True)
             tv.setHorizontallyResizable_(False)
+            # NSViewWidthSizable (2) makes the text view track its superview
+            # (the NSClipView) width — NSScrollView manages this via its own
+            # internal mechanism and must NOT be replaced with Auto Layout
+            # constraints (which break editing and scrolling).
+            tv.setAutoresizingMask_(2)
+            tv.textContainer().setWidthTracksTextView_(True)
             tv.setTextContainerInset_((5, 5))
-            tv.setFont_(_UI.mono_font())
-            inner.addView_inGravity_(_UI.scroll(tv, h), NSStackViewGravityTop)
+            tv.setFont_(_UI.mono_font(12.0))
+            tv._apply()
+            sc.setDocumentView_(tv)
+
+            inner.addView_inGravity_(sc, NSStackViewGravityTop)
             self._wish[name] = tv
             self._all_config_controls.append(tv)
             _UI.add_card(outer, inner)
@@ -919,9 +979,11 @@ class PokeMacroController(NSObject):
         self._stok = NSSecureTextField.alloc().init()
         self._stok.setStringValue_("")
         self._stok.setBezeled_(True)
+        self._stok.cell().setScrollable_(False)
         self._ptok = NSTextField.alloc().init()
         self._ptok.setStringValue_("")
         self._ptok.setBezeled_(True)
+        self._ptok.cell().setScrollable_(False)
         self._ptok.setHidden_(True)
         self._all_config_controls.extend([self._stok, self._ptok])
 
@@ -940,6 +1002,7 @@ class PokeMacroController(NSObject):
         self._server = NSTextField.alloc().init()
         self._server.setStringValue_("0")
         self._server.setBezeled_(True)
+        self._server.cell().setScrollable_(False)
         self._all_config_controls.append(self._server)
         discord.addView_inGravity_(
             self._form_row("Server ID (numeric)", self._server), NSStackViewGravityTop
@@ -1147,6 +1210,7 @@ class PokeMacroController(NSObject):
                 tv.textStorage().setAttributedString_(
                     NSMutableAttributedString.alloc().initWithString_(s)
                 )
+            tv._apply()
         p = c.get("Positions", {}) or {}
         for k, (xf, yf) in self._pos.items():
             t = p.get(k, [0, 0])
