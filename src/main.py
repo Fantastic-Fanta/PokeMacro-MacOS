@@ -1,3 +1,5 @@
+import os
+from pathlib import Path
 import subprocess
 import sys
 import traceback
@@ -19,8 +21,14 @@ def focus_roblox() -> None:
     )
 
 
+def _restart_after_update() -> None:
+    exe = sys.executable
+    os.chdir(Path(__file__).resolve().parent.parent)
+    os.execv(exe, [exe] + sys.argv)
+
+
 def main() -> None:
-    start_background_update()
+    start_background_update(restart_callback=_restart_after_update)
     try:
         pyautogui.FAILSAFE = True
         if HUNTING_MODE == "roam":

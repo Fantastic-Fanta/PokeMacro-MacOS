@@ -141,7 +141,7 @@ def _merge_release_tree(src_root: Path, emit: Callable[[str], None]) -> None:
             continue
         dest.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(path, dest)
-    emit("[update] Installed release files. Restart the app to load new code.")
+    emit("[update] Installed release files.")
 
 
 def _download_zipball_and_merge(zip_url: str, emit: Callable[[str], None]) -> bool:
@@ -196,26 +196,27 @@ def _http_branch_zipball_update(
     emit: Callable[[str], None],
     *,
     skip_cache: bool = False,
-) -> bool:
+) -> tuple[bool, bool]:
+    """Returns (success, installed_new_merge). Second is False when already cached."""
     info = _http_json(f"https://api.github.com/repos/{repo}", emit)
     if not info or not isinstance(info, dict):
-        return False
+        return False, False
     branch = str(info.get("default_branch") or "master")
     commit_data = _http_json(
         f"https://api.github.com/repos/{repo}/commits/{branch}",
         emit,
     )
     if not commit_data or not isinstance(commit_data, dict):
-        return False
+        return False, False
     sha = str(commit_data.get("sha") or "").strip()
     if not sha:
         emit("[update] Could not read latest commit on default branch.")
-        return False
+        return False, False
     if not skip_cache and _UPDATE_COMMIT_CACHE.is_file():
         cached = _UPDATE_COMMIT_CACHE.read_text(encoding="utf-8", errors="replace").strip()
         if cached == sha:
             emit(f"[update] Already up to date ({branch} @ {sha[:7]}).")
-            return True
+            return True, False
     zip_url = f"https://api.github.com/repos/{repo}/zipball/{branch}"
     emit(f"[update] Downloading {branch} @ {sha[:7]} …")
     ok = _download_zipball_and_merge(zip_url, emit)
@@ -224,12 +225,12 @@ def _http_branch_zipball_update(
             _UPDATE_COMMIT_CACHE.write_text(sha + "\n", encoding="utf-8")
         except OSError as e:
             emit(f"[update] Could not save update marker: {e}")
-    return ok
+    return (True, True) if ok else (False, False)
 
 
 def _http_release_update(
     repo: str, emit: Callable[[str], None], *, force: bool = False
-) -> bool:
+) -> tuple[bool, bool]:
     try:
         from . import __version__ as local_ver
     except Exception:
@@ -246,17 +247,17 @@ def _http_release_update(
             emit("[update] No GitHub releases; syncing from default branch instead.")
             return _http_branch_zipball_update(repo, emit, skip_cache=force)
         emit(f"[update] GitHub API HTTP {e.code}: {e.reason}")
-        return False
+        return False, False
     except URLError as e:
         emit(f"[update] GitHub API error: {e.reason}")
         emit_tls_hint(emit, e)
-        return False
+        return False, False
     except json.JSONDecodeError as e:
         emit(f"[update] GitHub API: invalid JSON ({e})")
-        return False
+        return False, False
     except OSError as e:
         emit(f"[update] GitHub API: {e}")
-        return False
+        return False, False
 
     if not isinstance(release_data, dict):
         return _http_branch_zipball_update(repo, emit, skip_cache=force)
@@ -271,18 +272,20 @@ def _http_release_update(
     local_t = _version_tuple(str(local_ver))
     if not force and remote_t <= local_t:
         emit(f"[update] Already on latest release ({local_ver}).")
-        return True
+        return True, False
 
     emit(
         f"[update] {'Force downloading' if force else 'Downloading'} {tag} …"
     )
-    return _download_zipball_and_merge(zip_url, emit)
+    merged = _download_zipball_and_merge(zip_url, emit)
+    return (True, True) if merged else (False, False)
 
 
 def start_background_update(
     *,
     log_queue: queue.Queue[str] | None = None,
     log_fn: Callable[[str], None] | None = None,
+    restart_callback: Callable[[], None] | None = None,
 ) -> None:
     def emit(s: str) -> None:
         if log_queue is not None:
@@ -301,6 +304,14 @@ def start_background_update(
                 "(GitHub origin URL from .git/config is used when present)."
             )
             return
-        _http_release_update(repo, emit, force=False)
+        ok, installed = _http_release_update(repo, emit, force=False)
+        if not ok:
+            return
+        if installed:
+            if restart_callback:
+                emit("[update] Restarting to load the update …")
+                restart_callback()
+            else:
+                emit("[update] Restart the app to load new code.")
 
     threading.Thread(target=work, daemon=True, name="auto-update").start()

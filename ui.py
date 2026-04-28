@@ -484,6 +484,20 @@ class SubprocessManager:
 
             threading.Thread(target=_wait, daemon=True).start()
 
+    def stop_blocking(self, timeout: float = 20.0) -> None:
+        """Wait for the macro subprocess to exit (used before process replace on update)."""
+        if not self._proc or self._proc.poll() is not None:
+            return
+        self._proc.terminate()
+        try:
+            self._proc.wait(timeout=timeout)
+        except subprocess.TimeoutExpired:
+            self._proc.kill()
+            try:
+                self._proc.wait(timeout=5)
+            except OSError:
+                pass
+
     def is_running(self) -> bool:
         return self._proc is not None and self._proc.poll() is None
 
@@ -1466,7 +1480,9 @@ class PokeMacroController(NSObject):
                 lines: list[str] = []
                 assert proc.stdout
                 for line in proc.stdout:
-                    lines.append(line.rstrip("\n"))
+                    stripped = line.rstrip("\n")
+                    lines.append(stripped)
+                    print(stripped, flush=True)
                 proc.wait()
                 code = int(proc.returncode or 0)
                 out_path = PROJECT_ROOT / out_file
@@ -1982,6 +1998,17 @@ class PokeMacroController(NSObject):
         )
 
     @objc.python_method
+    def _restart_after_update(self) -> None:
+        if self._is_running:
+            self._subprocess_mgr.stop_blocking()
+        exe = sys.executable
+        os.chdir(str(PROJECT_ROOT))
+        try:
+            os.execv(exe, [exe] + sys.argv)
+        except OSError as e:
+            self._line(f"[update] Could not restart ({e}). Quit and reopen the app.")
+
+    @objc.python_method
     def _stop_run(self) -> None:
         if self._run_item is not None:
             self._run_item.setEnabled_(False)
@@ -2101,6 +2128,7 @@ class PokeMacroController(NSObject):
 
     @objc.python_method
     def _line(self, s: str) -> None:
+        print(s, flush=True)
         ts = self._log.textStorage()
         if ts is None:
             return
@@ -2224,7 +2252,12 @@ class PokeMacroController(NSObject):
     # ── Entry point ────────────────────────────────────────────────
     @objc.python_method
     def run(self) -> None:
-        start_background_update(log_queue=self._log_queue)
+        start_background_update(
+            log_queue=self._log_queue,
+            restart_callback=lambda: NSOperationQueue.mainQueue().addOperationWithBlock_(
+                self._restart_after_update,
+            ),
+        )
         app = NSApplication.sharedApplication()
         app.setDelegate_(self)
         self._menu()
