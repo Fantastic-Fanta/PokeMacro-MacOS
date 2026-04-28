@@ -298,35 +298,6 @@ class _UI:
         return v
 
     @staticmethod
-    def scroll(doc: NSView, min_height: float) -> NSScrollView:
-        sc = NSScrollView.alloc().init()
-        sc.setDocumentView_(doc)
-        sc.setHasVerticalScroller_(True)
-        sc.setAutohidesScrollers_(True)
-        sc.setBorderType_(0)
-        sc.setDrawsBackground_(True)
-        sc.setTranslatesAutoresizingMaskIntoConstraints_(False)
-        sc.heightAnchor().constraintEqualToConstant_(min_height).setActive_(True)
-        return sc
-
-    @staticmethod
-    def full_scroll(doc: NSView) -> NSScrollView:
-        doc.setTranslatesAutoresizingMaskIntoConstraints_(False)
-        sc = NSScrollView.alloc().init()
-        sc.setDocumentView_(doc)
-        sc.setDrawsBackground_(True)
-        sc.setHasVerticalScroller_(True)
-        sc.setAutohidesScrollers_(True)
-        sc.setBorderType_(0)
-        sc.setTranslatesAutoresizingMaskIntoConstraints_(False)
-        cv = sc.contentView()
-        doc.leadingAnchor().constraintEqualToAnchor_(cv.leadingAnchor()).setActive_(True)
-        doc.trailingAnchor().constraintEqualToAnchor_(cv.trailingAnchor()).setActive_(True)
-        doc.topAnchor().constraintEqualToAnchor_(cv.topAnchor()).setActive_(True)
-        doc.widthAnchor().constraintEqualToAnchor_(cv.widthAnchor()).setActive_(True)
-        return sc
-
-    @staticmethod
     def add_card(stack: NSStackView, content: NSView, pad: float = UI_PAD) -> NSView:
         """Wrap `content` in a card and append to `stack`, constraining the card
         to span the stack's full width (minus `pad` on each side) so all cards
@@ -705,12 +676,10 @@ class SidebarSource(NSObject):
         if self is None:
             return None
         self._ctrl = controller
-        self._table = None
         return self
 
     @objc.python_method
     def attach(self, table: NSTableView) -> None:
-        self._table = table
         table.setDataSource_(self)
         table.setDelegate_(self)
         table.reloadData()
@@ -1570,7 +1539,7 @@ class PokeMacroController(NSObject):
 
         def _click_handler(event):
             NSOperationQueue.mainQueue().addOperationWithBlock_(
-                lambda: self._applyPick(finalize=True)
+                lambda: self._applyPick()
             )
 
         self._pick_monitor = NSEvent.addGlobalMonitorForEventsMatchingMask_handler_(
@@ -1587,9 +1556,7 @@ class PokeMacroController(NSObject):
         self._pick_fields[1].setStringValue_(str(int(round(h - pt.y))))
 
     @objc.python_method
-    def _applyPick(self, finalize: bool = True) -> None:
-        if not finalize:
-            return
+    def _applyPick(self) -> None:
         self._pick_fields = None
         if self._pick_timer is not None:
             self._pick_timer.invalidate()
