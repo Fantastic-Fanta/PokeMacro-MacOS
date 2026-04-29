@@ -18,6 +18,7 @@ from AppKit import (
     NSAlert, NSAlertFirstButtonReturn,
     NSApplication, NSApplicationActivationPolicyRegular,
     NSBackingStoreBuffered,
+    NSBezierPath,
     NSBezelStyleRounded,
     NSButton, NSButtonTypeMomentaryPushIn, NSButtonTypeSwitch,
     NSCenterTextAlignment, NSRightTextAlignment,
@@ -154,6 +155,106 @@ class _ClickThroughView(NSView):
         if getattr(self, '_click_through', False):
             return None
         return objc.super(_ClickThroughView, self).hitTest_(point)
+
+
+# ── Spinning ring view (update animation) ─────────────────────────────
+class _SpinRingView(NSView):
+    @objc.python_method
+    def _setup(self) -> None:
+        self._angle: float = 90.0
+        self._spin_timer = None
+
+    def drawRect_(self, rect) -> None:
+        import warnings
+        b = self.bounds()
+        cx = b.size.width / 2.0
+        cy = b.size.height / 2.0
+        lw = 5.0
+        r = min(cx, cy) - lw - 1.0
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            NSColor.colorWithWhite_alpha_(1.0, 0.18).set()
+        track = NSBezierPath.bezierPathWithOvalInRect_(
+            NSMakeRect(cx - r, cy - r, r * 2, r * 2)
+        )
+        track.setLineWidth_(lw)
+        track.stroke()
+
+        arc = NSBezierPath.bezierPath()
+        arc.appendBezierPathWithArcWithCenter_radius_startAngle_endAngle_clockwise_(
+            (cx, cy), r, self._angle, self._angle - 240.0, True
+        )
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            NSColor.colorWithWhite_alpha_(1.0, 0.92).set()
+        arc.setLineWidth_(lw)
+        arc.setLineCapStyle_(1)  # NSRoundLineCapStyle
+        arc.stroke()
+
+    @objc.python_method
+    def start_spin(self) -> None:
+        if self._spin_timer is not None:
+            return
+
+        def _tick(_t: NSTimer) -> None:
+            self._angle = (self._angle + 6.0) % 360.0
+            self.setNeedsDisplay_(True)
+
+        self._spin_timer = NSTimer.scheduledTimerWithTimeInterval_repeats_block_(
+            1.0 / 60.0, True, _tick
+        )
+
+    @objc.python_method
+    def stop_spin(self) -> None:
+        if self._spin_timer is not None:
+            self._spin_timer.invalidate()
+            self._spin_timer = None
+
+
+# ── Update overlay (dims window and shows the ring while updating) ─────
+class _UpdateOverlayView(NSView):
+    @objc.python_method
+    def _setup(self) -> None:
+        self.setWantsLayer_(True)
+        import warnings
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            bg = NSColor.colorWithRed_green_blue_alpha_(0.0, 0.0, 0.0, 0.55).CGColor()
+        layer = self.layer()
+        if layer and bg:
+            layer.setBackgroundColor_(bg)
+
+        ring_size = 72.0
+        self._ring: _SpinRingView = _SpinRingView.alloc().init()
+        self._ring._setup()
+        self._ring.setTranslatesAutoresizingMaskIntoConstraints_(False)
+
+        lbl = _UI.label("Updating…", size=14.0, color=NSColor.whiteColor())
+        lbl.setTranslatesAutoresizingMaskIntoConstraints_(False)
+        lbl.setAlignment_(NSCenterTextAlignment)
+
+        stack = NSStackView.stackViewWithViews_([])
+        stack.setOrientation_(NSUserInterfaceLayoutOrientationVertical)
+        stack.setSpacing_(14.0)
+        stack.setAlignment_(NSLayoutAttributeCenterX)
+        stack.setTranslatesAutoresizingMaskIntoConstraints_(False)
+        stack.addView_inGravity_(self._ring, NSStackViewGravityTop)
+        stack.addView_inGravity_(lbl, NSStackViewGravityTop)
+
+        self.addSubview_(stack)
+        self._ring.widthAnchor().constraintEqualToConstant_(ring_size).setActive_(True)
+        self._ring.heightAnchor().constraintEqualToConstant_(ring_size).setActive_(True)
+        stack.centerXAnchor().constraintEqualToAnchor_(self.centerXAnchor()).setActive_(True)
+        stack.centerYAnchor().constraintEqualToAnchor_(self.centerYAnchor()).setActive_(True)
+
+    @objc.python_method
+    def start(self) -> None:
+        self._ring.start_spin()
+
+    @objc.python_method
+    def stop(self) -> None:
+        self._ring.stop_spin()
 
 
 # ── Card view (dark-mode adaptive bordered box) ────────────────────────
@@ -765,6 +866,7 @@ class PokeMacroController(NSObject):
         self._dex_p1_field     = None
         self._dex_p2_field     = None
         self._dex_tv           = None
+        self._update_overlay: _UpdateOverlayView | None = None
 
         self._build_content_panels()
         self._build_window()
@@ -2013,6 +2115,26 @@ class PokeMacroController(NSObject):
         NSApplication.sharedApplication().terminate_(None)
 
     @objc.python_method
+    def _show_update_overlay(self) -> None:
+        if self._update_overlay is not None:
+            return
+        overlay = _UpdateOverlayView.alloc().init()
+        overlay.setTranslatesAutoresizingMaskIntoConstraints_(False)
+        overlay._setup()
+        self._ct_view.addSubview_(overlay)
+        _UI.pin_edges(overlay, self._ct_view)
+        overlay.start()
+        self._update_overlay = overlay
+
+    @objc.python_method
+    def _hide_update_overlay(self) -> None:
+        if self._update_overlay is None:
+            return
+        self._update_overlay.stop()
+        self._update_overlay.removeFromSuperview()
+        self._update_overlay = None
+
+    @objc.python_method
     def _stop_run(self) -> None:
         if self._run_item is not None:
             self._run_item.setEnabled_(False)
@@ -2133,6 +2255,12 @@ class PokeMacroController(NSObject):
     @objc.python_method
     def _line(self, s: str) -> None:
         print(s, flush=True)
+        if "[update] Downloading" in s:
+            self._show_update_overlay()
+        elif self._update_overlay is not None:
+            sl = s.lower()
+            if "failed" in sl or "error" in sl or "could not" in sl or "skipping" in sl:
+                self._hide_update_overlay()
         ts = self._log.textStorage()
         if ts is None:
             return
