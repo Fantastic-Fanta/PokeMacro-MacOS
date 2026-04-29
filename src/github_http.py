@@ -4,6 +4,7 @@
 - Prefers ``SSL_CERT_FILE`` or ``REQUESTS_CA_BUNDLE`` when set to a PEM file (corporate CA).
 - Otherwise uses `truststore` (OS certificate store; fixes many macOS / python.org setups).
 - Then ``certifi``'s CA bundle.
+- Then macOS system bundle at ``/etc/ssl/cert.pem`` (Ventura+).
 - Last: ``ssl.create_default_context()`` (system OpenSSL paths).
 """
 from __future__ import annotations
@@ -73,6 +74,14 @@ def ssl_context(*, emit: Callable[[str], None] | None = None) -> ssl.SSLContext:
     except Exception:
         pass
 
+    # macOS system CA bundle (works on Ventura+; absent on Linux — ignored there).
+    _MACOS_CERT = "/etc/ssl/cert.pem"
+    if os.path.isfile(_MACOS_CERT):
+        try:
+            return ssl.create_default_context(cafile=_MACOS_CERT)
+        except OSError:
+            pass
+
     return ssl.create_default_context()
 
 
@@ -86,13 +95,32 @@ def urlopen_tls(
 
 
 def emit_tls_hint(emit: Callable[[str], None], err: Any) -> None:
-    """Call after URLError for certificate-related failures."""
+    """Call after a TLS/SSL failure to print actionable guidance."""
     reason = getattr(err, "reason", err)
-    text = str(reason).lower()
-    if any(x in text for x in ("certificate", "ssl", "tls", "handshake")):
-        emit(
-            "[ssl] Try: pip install -U truststore certifi — set SSL_CERT_FILE to a PEM that "
-            "includes your proxy/company CA — on macOS (python.org builds), open "
-            "Applications/Python 3.x/Install Certificates.command — last resort "
-            "POKEMACRO_INSECURE_SSL=1 (insecure)."
-        )
+    text = str(reason).lower() + str(err).lower()
+    if not any(x in text for x in ("certificate", "ssl", "tls", "handshake")):
+        return
+
+    import platform
+    import sys
+
+    lines = [
+        "[ssl] SSL certificate verification failed. Quick fixes:",
+        "  1. pip install -U truststore certifi",
+    ]
+
+    if platform.system() == "Darwin":
+        ver = f"{sys.version_info.major}.{sys.version_info.minor}"
+        cert_cmd = f"/Applications/Python {ver}/Install Certificates.command"
+        if os.path.isfile(cert_cmd):
+            lines.append(f"  2. Run: open \"{cert_cmd}\"  (installs macOS CA certs for python.org builds)")
+        else:
+            lines.append(
+                f"  2. Open Finder → Applications → Python {ver} → double-click 'Install Certificates.command'"
+            )
+
+    lines += [
+        "  3. Set SSL_CERT_FILE=/path/to/your-ca-bundle.pem (corporate proxy CA)",
+        "  4. Last resort (insecure): set POKEMACRO_INSECURE_SSL=1",
+    ]
+    emit("\n".join(lines))
