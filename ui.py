@@ -2001,12 +2001,16 @@ class PokeMacroController(NSObject):
     def _restart_after_update(self) -> None:
         if self._is_running:
             self._subprocess_mgr.stop_blocking()
-        exe = sys.executable
-        os.chdir(str(PROJECT_ROOT))
         try:
-            os.execv(exe, [exe] + sys.argv)
+            subprocess.Popen(
+                [str(VENV_PYTHON), str(PROJECT_ROOT / "ui.py")],
+                cwd=str(PROJECT_ROOT),
+                start_new_session=True,
+            )
         except OSError as e:
             self._line(f"[update] Could not restart ({e}). Quit and reopen the app.")
+            return
+        NSApplication.sharedApplication().terminate_(None)
 
     @objc.python_method
     def _stop_run(self) -> None:
