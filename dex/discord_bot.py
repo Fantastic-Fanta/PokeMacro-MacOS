@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 from io import BytesIO
 from pathlib import Path
-from typing import Optional, Tuple
+from typing import Optional
 
 import discord
 from discord import app_commands
@@ -17,51 +17,30 @@ log = logging.getLogger(__name__)
 
 
 def _get_repo_root() -> Path:
-    """Return the repository root (three levels up from this file)."""
     return Path(__file__).resolve().parent.parent.parent
 
 
 def _load_yaml(config_path: Path) -> dict:
-    """Load raw YAML dict from configs.yaml."""
     with open(config_path) as f:
         return yaml.safe_load(f) or {}
 
 
 def _load_dex_config(config_path: Path) -> DexScannerConfig:
-    """Load DexScanner config from YAML, falling back to empty dict."""
     data = _load_yaml(config_path)
     dex = data.get("DexScanner") or {}
     return DexScannerConfig.from_dict(dex)
 
 
-def _load_discord_bot_settings(config_path: Path) -> Tuple[str, Optional[int]]:
-    """Return (token, server_id) from configs.yaml.
-
-    Expected keys at the top level:
-        DiscordBotToken: "<token>"
-        ServerID: 123456789012345678
-    """
-    data = _load_yaml(config_path)
-    token = data.get("DiscordBotToken") or ""
-    server_id_raw = data.get("ServerID")
-    server_id: Optional[int]
-    try:
-        server_id = int(server_id_raw) if server_id_raw is not None else None
-    except (TypeError, ValueError):
-        server_id = None
-    return token, server_id
+def _load_discord_bot_token(config_path: Path) -> str:
+    return _load_yaml(config_path).get("DiscordBotToken") or ""
 
 
 class DexScannerBot(commands.Bot):
-    """Bot subclass with tree sync on ready."""
-
     def __init__(self) -> None:
         intents = discord.Intents.default()
         super().__init__(command_prefix="!", intents=intents)
 
     async def setup_hook(self) -> None:
-        # Register the /scan-dex command on the bot's command tree
-        # Necessary?
         @self.tree.command(
             name="scan-dex",
             description="Poopidex scanner",
@@ -74,7 +53,6 @@ class DexScannerBot(commands.Bot):
         ) -> None:
             await interaction.response.defer(thinking=True, ephemeral=False)
 
-            # Download attachments into memory
             try:
                 data1 = await page1.read()
                 data2 = await page2.read()
@@ -91,7 +69,6 @@ class DexScannerBot(commands.Bot):
 
             repo_root = _get_repo_root()
 
-            # Locate configs.yaml similar to CLI main
             config_path: Optional[Path] = None
             candidate = Path("configs.yaml")
             if candidate.is_absolute() or candidate.exists():
@@ -132,9 +109,6 @@ class DexScannerBot(commands.Bot):
                 )
                 return
 
-            # Note: missing_numbers length reflects all missing indices, including any
-            # that were skipped when writing due to unknown names. This still reflects
-            # the raw scan result, which is what callers generally care about.
             description = f"{len(missing_numbers)} missing"
 
             await interaction.followup.send(
@@ -143,7 +117,6 @@ class DexScannerBot(commands.Bot):
                 ephemeral=False,
             )
 
-        # Sync application commands once when the bot starts
         try:
             synced = await self.tree.sync()
             log.info("Synced %d application commands", len(synced))
@@ -152,33 +125,15 @@ class DexScannerBot(commands.Bot):
 
 
 def main() -> None:
-    """Entrypoint to run the discord dex scanner bot.
-
-    Reads the bot token (and optionally a guild/server ID) from configs.yaml.
-
-    The /scan-dex command is registered as a global application command, so it
-    can be used both in servers where the bot is present and in direct messages
-    with the bot client.
-
-        DiscordBotToken: "<token>"
-        ServerID: 123456789012345678
-    """
     logging.basicConfig(level=logging.INFO)
     repo_root = _get_repo_root()
-
-    # Locate configs.yaml at repo root
     config_path = repo_root / "configs.yaml"
     if not config_path.exists():
         raise SystemExit(f"Config file not found: {config_path}")
-
-    token, server_id = _load_discord_bot_settings(config_path)
+    token = _load_discord_bot_token(config_path)
     if not token:
         raise SystemExit("DiscordBotToken is not set in configs.yaml")
-
-    bot = DexScannerBot()
-    # Note: commands are synced globally in DexScannerBot.setup_hook, so they
-    # are usable from any client context (DMs or guilds) where the bot exists.
-    bot.run(token)
+    DexScannerBot().run(token)
 
 
 if __name__ == "__main__":

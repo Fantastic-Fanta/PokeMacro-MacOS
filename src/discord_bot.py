@@ -8,11 +8,9 @@ from pathlib import Path
 from typing import Optional
 
 import discord
-from discord import app_commands
 
 
 def _http_connector():
-    """Use same TLS trust as GitHub updater (certifi, SSL_CERT_FILE, POKEMACRO_INSECURE_SSL)."""
     try:
         import aiohttp
 
@@ -44,7 +42,6 @@ class DiscordBot:
             self.client = discord.Client(intents=intents, connector=connector)
         else:
             self.client = discord.Client(intents=intents)
-        self.tree = app_commands.CommandTree(self.client)
         self.token = token
         self.guild_id = guild_id
         self.user_id: Optional[int] = None
@@ -122,16 +119,15 @@ class DiscordBot:
                 if confirmation_id in self._timeout_tasks:
                     self._timeout_tasks[confirmation_id].cancel()
                     del self._timeout_tasks[confirmation_id]
+                mention = f"<@{self.user_id}>" if self.user_id else "@everyone"
                 if action == "keep":
                     result = ConfirmationResult.KEEP
-                    mention = f"<@{self.user_id}>" if self.user_id else "@everyone"
                     await interaction.response.edit_message(
                         content=f"{mention} Egg successfully saved.",
                         view=None,
                     )
                 else:
                     result = ConfirmationResult.ROLL
-                    mention = f"<@{self.user_id}>" if self.user_id else "@everyone"
                     await interaction.response.edit_message(
                         content=f"{mention} Egg rolled off, continuing hunt.",
                         view=None,
@@ -177,10 +173,7 @@ class DiscordBot:
             if path.exists():
                 file = discord.File(str(path), filename=path.name)
                 embed.set_image(url=f"attachment://{path.name}")
-        if self.user_id:
-            mention = f"<@{self.user_id}>"
-        else:
-            mention = "@everyone" # Would need extra perms
+        mention = f"<@{self.user_id}>" if self.user_id else "@everyone"
         content = f"{mention} Awaiting confirmation..."
         if file is not None:
             sent_message = await self.confirmation_channel.send(content=content, embed=embed, view=view, file=file)
@@ -193,9 +186,8 @@ class DiscordBot:
                 future_inner = self._pending_confirmations[confirmation_id]
                 if not future_inner.done():
                     try:
-                        mention_t = f"<@{self.user_id}>" if self.user_id else "@everyone"
                         await sent_message.edit(
-                            content=f"{mention_t} Egg successfully saved.",
+                            content=f"{mention} Egg successfully saved.",
                             view=None,
                         )
                     except Exception:
