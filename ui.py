@@ -2072,6 +2072,12 @@ class PokeMacroController(NSObject):
     # ── Run lifecycle ──────────────────────────────────────────────
     @objc.python_method
     def _start_run(self) -> None:
+        start_background_update(
+            log_queue=self._log_queue,
+            restart_callback=lambda: NSOperationQueue.mainQueue().addOperationWithBlock_(
+                self._restart_after_update,
+            ),
+        )
         self._config = self._gather()
         self._config_manager.save(self._config)
         self._is_running = True
