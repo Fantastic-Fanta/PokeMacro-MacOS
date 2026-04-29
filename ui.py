@@ -1,6 +1,3 @@
-"""
-PokeMacro — native AppKit (PyObjC) UI
-"""
 from __future__ import annotations
 
 import os
@@ -75,24 +72,19 @@ from src import __version__ as APP_VERSION
 from src.git_update import start_background_update
 from src.macro_config import get_config_path
 
-# ── Project paths ──────────────────────────────────────────────────────
-# Same path the macro subprocess uses (important when frozen / bundled).
 CONFIG_PATH = get_config_path()
 PROJECT_ROOT = CONFIG_PATH.parent
 _venv = PROJECT_ROOT / "ENV" / "bin" / "python"
 VENV_PYTHON = _venv if _venv.exists() else Path(sys.executable)
 
-# ── Layout constants ───────────────────────────────────────────────────
 SIDEBAR_W  = 200.0
 UI_PAD     = 20.0
 LABEL_W    = 155.0
 FIELD_W    = 80.0
 PICK_BTN_W = 26.0
-# Inner padding for _CardView contents — keep in sync with _UI.box.
 _CARD_INNER_PAD_H = 12.0
 _CARD_INNER_PAD_V = 10.0
 
-# ── Data ───────────────────────────────────────────────────────────────
 POSITION_KEYS = [
     ("EggManPosition",     "Egg Man Position"),
     ("EventButton",        "Event Button"),
@@ -123,7 +115,6 @@ _TB_RUN     = "PM.run"
 _TB_DEFAULT = [_TB_STATUS, _TB_FLEX, _TB_SAVE, _TB_RUN]
 
 
-# ── Color namespace ────────────────────────────────────────────────────
 class _Colors:
     IDLE  = None
     RUN   = None
@@ -140,7 +131,6 @@ def _init_colors() -> None:
     _Colors.MUTED = NSColor.secondaryLabelColor()
 
 
-# ── Flipped view (y=0 at top) for scroll view document views ──────────
 class _FlippedView(NSView):
     def isFlipped(self) -> bool:
         return True
@@ -157,7 +147,6 @@ class _ClickThroughView(NSView):
         return objc.super(_ClickThroughView, self).hitTest_(point)
 
 
-# ── Spinning ring view (update animation) ─────────────────────────────
 class _SpinRingView(NSView):
     @objc.python_method
     def _setup(self) -> None:
@@ -189,7 +178,7 @@ class _SpinRingView(NSView):
             warnings.simplefilter("ignore")
             NSColor.colorWithWhite_alpha_(1.0, 0.92).set()
         arc.setLineWidth_(lw)
-        arc.setLineCapStyle_(1)  # NSRoundLineCapStyle
+        arc.setLineCapStyle_(1)
         arc.stroke()
 
     @objc.python_method
@@ -212,7 +201,6 @@ class _SpinRingView(NSView):
             self._spin_timer = None
 
 
-# ── Update overlay (dims window and shows the ring while updating) ─────
 class _UpdateOverlayView(NSView):
     @objc.python_method
     def _setup(self) -> None:
@@ -257,7 +245,6 @@ class _UpdateOverlayView(NSView):
         self._ring.stop_spin()
 
 
-# ── Card view (dark-mode adaptive bordered box) ────────────────────────
 class _CardView(NSView):
     def viewDidChangeEffectiveAppearance(self) -> None:
         objc.super(_CardView, self).viewDidChangeEffectiveAppearance()
@@ -279,7 +266,6 @@ class _CardView(NSView):
             layer.setBorderColor_(bd)
 
 
-# ── Integer field parser ───────────────────────────────────────────────
 def _int_val(f: NSTextField) -> int:
     s = (f.stringValue() or "").strip() or "0"
     try:
@@ -288,7 +274,6 @@ def _int_val(f: NSTextField) -> int:
         return 0
 
 
-# ── UI factory helpers ─────────────────────────────────────────────────
 class _UI:
     @staticmethod
     def label(text: str, size: float = 13.0,
@@ -404,9 +389,6 @@ class _UI:
 
     @staticmethod
     def add_card(stack: NSStackView, content: NSView, pad: float = UI_PAD) -> NSView:
-        """Wrap `content` in a card and append to `stack`, constraining the card
-        to span the stack's full width (minus `pad` on each side) so all cards
-        in a column line up."""
         box = _UI.box(content)
         stack.addView_inGravity_(box, NSStackViewGravityTop)
         box.widthAnchor().constraintEqualToAnchor_constant_(
@@ -416,9 +398,6 @@ class _UI:
 
     @staticmethod
     def tab_scroll(doc: NSView) -> NSView:
-        """Scrollable tab content view. Uses a flipped document container so
-        content anchors to the top, wrapped in a plain NSView so NSTabView
-        can resize it via setFrame:."""
         fv = _FlippedView.alloc().init()
         fv.setTranslatesAutoresizingMaskIntoConstraints_(False)
         doc.setTranslatesAutoresizingMaskIntoConstraints_(False)
@@ -509,7 +488,6 @@ class _UI:
         return cell
 
 
-# ── Config + subprocess (unchanged logic) ─────────────────────────────
 class ConfigManager:
     def load(self) -> dict:
         try:
@@ -586,7 +564,6 @@ class SubprocessManager:
             threading.Thread(target=_wait, daemon=True).start()
 
     def stop_blocking(self, timeout: float = 20.0) -> None:
-        """Wait for the macro subprocess to exit (used before process replace on update)."""
         if not self._proc or self._proc.poll() is not None:
             return
         self._proc.terminate()
@@ -603,7 +580,6 @@ class SubprocessManager:
         return self._proc is not None and self._proc.poll() is None
 
 
-# ── Adaptive text views ────────────────────────────────────────────────
 class _AdaptiveLogTextView(NSTextView):
     def viewDidChangeEffectiveAppearance(self) -> None:
         objc.super(_AdaptiveLogTextView, self).viewDidChangeEffectiveAppearance()
@@ -628,10 +604,7 @@ class _AdaptiveWishTextView(NSTextView):
         self.setTextColor_(NSColor.textColor())
 
 
-# ── Drag-and-drop zone ────────────────────────────────────────────────
 class _DropZoneView(NSView):
-    """Spacious, friendly drop target for image files.
-    Exposes stringValue / setStringValue_ so existing callers need no changes."""
 
     @objc.python_method
     def _setup(self, title: str, default_path: str) -> None:
@@ -642,7 +615,6 @@ class _DropZoneView(NSView):
         self.registerForDraggedTypes_([NSFilenamesPboardType])
         self._refresh_layer()
 
-        # Hero icon (drop affordance)
         self._iv = NSImageView.alloc().init()
         self._iv.setTranslatesAutoresizingMaskIntoConstraints_(False)
         img = _UI.sf("arrow.down.circle.fill", "drop image here", size=32.0, weight=-0.25)
@@ -657,12 +629,10 @@ class _DropZoneView(NSView):
         self._iv.widthAnchor().constraintEqualToConstant_(ICON).setActive_(True)
         self._iv.heightAnchor().constraintEqualToConstant_(ICON).setActive_(True)
 
-        # Title
         title_lbl = _UI.label(title, size=14.5, bold=True)
         title_lbl.setAlignment_(NSCenterTextAlignment)
         title_lbl.setTranslatesAutoresizingMaskIntoConstraints_(False)
 
-        # Hint — short enough for two columns; truncates if the pane is very narrow
         hint_lbl = _UI.label(
             "Drop a screenshot, or tap Choose.",
             size=11.25,
@@ -671,7 +641,6 @@ class _DropZoneView(NSView):
         hint_lbl.setAlignment_(NSCenterTextAlignment)
         hint_lbl.setTranslatesAutoresizingMaskIntoConstraints_(False)
 
-        # Current filename (muted monospaced)
         self._path_lbl = NSTextField.labelWithString_(Path(self._path).name)
         self._path_lbl.setFont_(_UI.mono_font(10.0))
         self._path_lbl.setTextColor_(NSColor.tertiaryLabelColor())
@@ -679,7 +648,6 @@ class _DropZoneView(NSView):
         self._path_lbl.setAlignment_(NSCenterTextAlignment)
         self._path_lbl.setTranslatesAutoresizingMaskIntoConstraints_(False)
 
-        # Browse — caller must set target/action via self.browse_button
         self._browse_btn = NSButton.alloc().init()
         self._browse_btn.setButtonType_(NSButtonTypeMomentaryPushIn)
         self._browse_btn.setBezelStyle_(NSBezelStyleRounded)
@@ -700,7 +668,6 @@ class _DropZoneView(NSView):
         vstack.addView_inGravity_(self._browse_btn, NSStackViewGravityTop)
 
         self.addSubview_(vstack)
-        # Inset inside the drop well; card already uses _CARD_INNER_PAD_H from ss_card.
         EDGE_H = 10.0
         vstack.leadingAnchor().constraintEqualToAnchor_constant_(
             self.leadingAnchor(), EDGE_H
@@ -756,7 +723,6 @@ class _DropZoneView(NSView):
         objc.super(_DropZoneView, self).viewDidChangeEffectiveAppearance()
         self._refresh_layer()
 
-    # ── NSTextField-compatible interface ───────────────────────────────
     def stringValue(self):
         return getattr(self, '_path', '')
 
@@ -765,11 +731,10 @@ class _DropZoneView(NSView):
         if hasattr(self, '_path_lbl') and self._path_lbl is not None:
             self._path_lbl.setStringValue_(Path(self._path).name)
 
-    # ── Drag protocol ──────────────────────────────────────────────────
     def draggingEntered_(self, sender):
         self._dragging = True
         self._refresh_layer()
-        return 1  # NSDragOperationCopy
+        return 1
 
     def draggingUpdated_(self, sender):
         return 1
@@ -791,7 +756,6 @@ class _DropZoneView(NSView):
         return False
 
 
-# ── Sidebar table data source / delegate ───────────────────────────────
 class SidebarSource(NSObject):
     def initWithController_(self, controller):
         self = objc.super(SidebarSource, self).init()
@@ -831,7 +795,6 @@ class SidebarSource(NSObject):
             self._ctrl.switchToTab_(idx)
 
 
-# ── Main controller ────────────────────────────────────────────────────
 class PokeMacroController(NSObject):
 
     def init(self):
@@ -874,7 +837,6 @@ class PokeMacroController(NSObject):
         self._arm_log_polling()
         return self
 
-    # ── Content panels ─────────────────────────────────────────────
     @objc.python_method
     def _build_content_panels(self) -> None:
         self._tab = NSTabView.alloc().init()
@@ -895,7 +857,6 @@ class PokeMacroController(NSObject):
         self._tab.selectTabViewItemAtIndex_(0)
         self._tab.setTranslatesAutoresizingMaskIntoConstraints_(False)
 
-    # ── Window ─────────────────────────────────────────────────────
     @objc.python_method
     def _build_window(self) -> None:
         style = (
@@ -914,7 +875,7 @@ class PokeMacroController(NSObject):
         self._window.setMinSize_(NSMakeSize(628, 500))
         self._window.setDelegate_(self)
         self._window.setReleasedWhenClosed_(False)
-        self._window.setLevel_(3)  # NSFloatingWindowLevel — always on top
+        self._window.setLevel_(3)
         self._build_toolbar()
         self._window.setToolbar_(self._toolbar)
         split = self._build_split_view()
@@ -939,7 +900,6 @@ class PokeMacroController(NSObject):
         self._tab.topAnchor().constraintEqualToAnchor_(guide.topAnchor()).setActive_(True)
         self._window.makeKeyAndOrderFront_(None)
 
-    # ── Toolbar ────────────────────────────────────────────────────
     @objc.python_method
     def _build_toolbar(self) -> None:
         self._toolbar = NSToolbar.alloc().initWithIdentifier_("PokeMacroToolbar")
@@ -1001,7 +961,6 @@ class PokeMacroController(NSObject):
 
         return item
 
-    # ── Split view (sidebar + content) ─────────────────────────────
     @objc.python_method
     def _build_split_view(self) -> NSView:
         eff = NSVisualEffectView.alloc().init()
@@ -1009,11 +968,6 @@ class PokeMacroController(NSObject):
         eff.setMaterial_(NSVisualEffectMaterialSidebar)
         eff.setState_(NSVisualEffectStateActive)
         eff.setWantsLayer_(True)
-        # Round only the two left corners to match the window corner radius.
-        # CACornerMask: kCALayerMinXMinYCorner=1 (bottom-left),
-        #               kCALayerMinXMaxYCorner=4 (top-left) in CA coords (Y-up).
-        # masksToBounds is intentionally NOT set — it hard-clips the blur
-        # material along straight edges and creates a visible seam.
         eff.layer().setCornerRadius_(10.0)
         eff.layer().setMaskedCorners_(1 | 4)
         eff.setTranslatesAutoresizingMaskIntoConstraints_(False)
@@ -1089,7 +1043,6 @@ class PokeMacroController(NSObject):
         self._sidebar_sv = sv
         return sv
 
-    # ── General tab ────────────────────────────────────────────────
     @objc.python_method
     def _form_row(self, label_text: str, field: NSView) -> NSStackView:
         row = _UI.h_stack(spacing=12.0)
@@ -1138,7 +1091,7 @@ class PokeMacroController(NSObject):
             ("IsReskin",   "Reskin"),
             ("IsShiny",    "Shiny"),
             ("IsGradient", "Gradient"),
-            ("IsGood",     "Good"),
+            ("IsGood",     "Good (Shiny Gradient / Reskin Gradient / Shiny Reskin)"),
             ("IsAny",      "Reskin Gradient"),
         ]:
             cb = _UI.checkbox(title)
@@ -1153,7 +1106,6 @@ class PokeMacroController(NSObject):
         _UI.pin_edges(outer, w)
         return w
 
-    # ── Wishlist tab ───────────────────────────────────────────────
     @objc.python_method
     def _tab_wishlist(self) -> NSView:
         outer = _UI.v_stack(spacing=12.0)
@@ -1170,7 +1122,7 @@ class PokeMacroController(NSObject):
             sc.setHasVerticalScroller_(True)
             sc.setHasHorizontalScroller_(False)
             sc.setAutohidesScrollers_(True)
-            sc.setBorderType_(0)  # no AppKit bezel — border drawn via layer
+            sc.setBorderType_(0)
             sc.setDrawsBackground_(True)
             sc.setWantsLayer_(True)
             sc.layer().setCornerRadius_(5.0)
@@ -1190,10 +1142,6 @@ class PokeMacroController(NSObject):
             tv.setMaxSize_(NSMakeSize(1e7, 1e7))
             tv.setVerticallyResizable_(True)
             tv.setHorizontallyResizable_(False)
-            # NSViewWidthSizable (2) makes the text view track its superview
-            # (the NSClipView) width — NSScrollView manages this via its own
-            # internal mechanism and must NOT be replaced with Auto Layout
-            # constraints (which break editing and scrolling).
             tv.setAutoresizingMask_(2)
             tv.textContainer().setWidthTracksTextView_(True)
             tv.setTextContainerInset_((5, 5))
@@ -1208,7 +1156,6 @@ class PokeMacroController(NSObject):
 
         return _UI.tab_scroll(outer)
 
-    # ── Positions tab ──────────────────────────────────────────────
     @objc.python_method
     def _make_coord_grid(
         self, rows: list[tuple[str, str]]
@@ -1302,16 +1249,13 @@ class PokeMacroController(NSObject):
 
         return _UI.tab_scroll(outer)
 
-    # ── Dex tab ────────────────────────────────────────────────────
     @objc.python_method
     def _tab_dex(self) -> NSView:
         CH, CV = _CARD_INNER_PAD_H, _CARD_INNER_PAD_V
         GAP  = 11.0
         DROP_H = 168.0
-        # Keeps the output panel readable; still grows with the window above this.
         DEX_OUTPUT_MIN_H = 188.0
 
-        # ── Two spacious drop zones ───────────────────────────────
         self._dex_p1_field = _DropZoneView.alloc().initWithFrame_(NSMakeRect(0, 0, 200, DROP_H))
         self._dex_p1_field._setup("Page 1", str(PROJECT_ROOT / "dex_screenshot.png"))
         self._dex_p1_field.browse_button.setTarget_(self)
@@ -1326,7 +1270,6 @@ class PokeMacroController(NSObject):
         self._dex_p2_field.setTranslatesAutoresizingMaskIntoConstraints_(False)
         self._dex_p2_field.heightAnchor().constraintEqualToConstant_(DROP_H).setActive_(True)
 
-        # ── Screenshots card (manual layout for full-width zones) ─
         hdr_title = _UI.label("Dex screenshots", size=13.0, bold=True)
         hdr_title.setTranslatesAutoresizingMaskIntoConstraints_(False)
         hdr_sub = _UI.label(
@@ -1361,7 +1304,6 @@ class PokeMacroController(NSObject):
             ss_card.addSubview_(sub)
         ss_card.addSubview_(scan_btn)
 
-        # Header row: titles left, Scan right
         ss_hdr.topAnchor().constraintEqualToAnchor_constant_(
             ss_card.topAnchor(), CV).setActive_(True)
         ss_hdr.leadingAnchor().constraintEqualToAnchor_constant_(
@@ -1373,7 +1315,6 @@ class PokeMacroController(NSObject):
         ss_hdr.trailingAnchor().constraintLessThanOrEqualToAnchor_constant_(
             scan_btn.leadingAnchor(), -GAP).setActive_(True)
 
-        # Drop zones side-by-side below header, equal width
         self._dex_p1_field.topAnchor().constraintEqualToAnchor_constant_(
             ss_hdr.bottomAnchor(), GAP).setActive_(True)
         self._dex_p1_field.leadingAnchor().constraintEqualToAnchor_constant_(
@@ -1391,7 +1332,6 @@ class PokeMacroController(NSObject):
         self._dex_p1_field.bottomAnchor().constraintEqualToAnchor_constant_(
             ss_card.bottomAnchor(), -CV).setActive_(True)
 
-        # ── Output card ───────────────────────────────────────────
         out_hdr = _UI.h_stack(spacing=6.0)
         out_hdr.addView_inGravity_(
             _UI.label("Output", size=11.0, color=NSColor.secondaryLabelColor()),
@@ -1414,7 +1354,6 @@ class PokeMacroController(NSObject):
         self._dex_tv.setMaxSize_(NSMakeSize(1e7, 1e7))
         self._dex_tv.setVerticallyResizable_(True)
         self._dex_tv.setHorizontallyResizable_(False)
-        # NSViewWidthSizable (2): track clip view width (same pattern as Wishlist tab).
         self._dex_tv.setAutoresizingMask_(2)
         self._dex_tv.textContainer().setWidthTracksTextView_(True)
         self._dex_tv._apply()
@@ -1457,10 +1396,6 @@ class PokeMacroController(NSObject):
         dex_sc.trailingAnchor().constraintEqualToAnchor_constant_(out_card.trailingAnchor(), -CH).setActive_(True)
         dex_sc.bottomAnchor().constraintEqualToAnchor_constant_(out_card.bottomAnchor(), -CV).setActive_(True)
 
-        # Fill the tab vertically (no outer scroll); output text scrolls inside dex_sc only.
-        # Root uses default TAMIC (YES) like _tab_logs / _tab_general so NSTabView can
-        # set the item view's frame to fill the tab; explicit False caused undersized
-        # item_bounds until the window was resized (see debug logs: item w < tab w).
         w = NSView.alloc().init()
         pad = UI_PAD
         w.addSubview_(ss_card)
@@ -1490,8 +1425,6 @@ class PokeMacroController(NSObject):
 
     @objc.python_method
     def _dex_sync_text_view(self) -> None:
-        """Force layout/display after programmatic text storage edits (otherwise the view
-        can stay stale until something triggers a relayout, e.g. resizing the window)."""
         tv = self._dex_tv
         if tv is None:
             return
@@ -1645,9 +1578,7 @@ class PokeMacroController(NSObject):
                 a.setInformativeText_(str(exc))
                 a.runModal()
 
-    # ── Coordinate pick ────────────────────────────────────────────
     def pickCoord_(self, sender) -> None:
-        # Cancel any in-progress pick first
         if self._pick_timer is not None:
             self._pick_timer.invalidate()
             self._pick_timer = None
@@ -1680,7 +1611,7 @@ class PokeMacroController(NSObject):
             )
 
         self._pick_monitor = NSEvent.addGlobalMonitorForEventsMatchingMask_handler_(
-            1 << 1,  # NSEventMaskLeftMouseDown
+            1 << 1,
             _click_handler,
         )
 
@@ -1707,13 +1638,11 @@ class PokeMacroController(NSObject):
             self._pick_btn.setEnabled_(True)
             self._pick_btn = None
 
-    # ── Logs tab ───────────────────────────────────────────────────
     @objc.python_method
     def _tab_logs(self) -> NSView:
         w   = NSView.alloc().init()
         pad = UI_PAD
 
-        # ── Discord card ──────────────────────────────────────────
         discord = _UI.v_stack(spacing=10.0)
         discord.addView_inGravity_(
             _UI.label("Discord", size=11.0, color=NSColor.secondaryLabelColor()),
@@ -1753,7 +1682,6 @@ class PokeMacroController(NSObject):
         discord_card = _UI.box(discord)
         discord_card.setTranslatesAutoresizingMaskIntoConstraints_(False)
 
-        # ── Output card (stretches to fill remaining height) ──────
         hdr = _UI.h_stack(spacing=6.0)
         hdr.addView_inGravity_(
             _UI.label("Output", size=11.0, color=NSColor.secondaryLabelColor()),
@@ -1806,7 +1734,6 @@ class PokeMacroController(NSObject):
         sc.trailingAnchor().constraintEqualToAnchor_constant_(output_card.trailingAnchor(), -H).setActive_(True)
         sc.bottomAnchor().constraintEqualToAnchor_constant_(output_card.bottomAnchor(), -V).setActive_(True)
 
-        # ── Place both cards in wrapper ───────────────────────────
         w.addSubview_(discord_card)
         w.addSubview_(output_card)
 
@@ -1821,14 +1748,12 @@ class PokeMacroController(NSObject):
 
         return w
 
-    # ── Debug tab ──────────────────────────────────────────────────
     @objc.python_method
     def _tab_debug(self) -> NSView:
         w   = NSView.alloc().init()
         pad = UI_PAD
         H, V = 12.0, 10.0
 
-        # ── Screenshot card ───────────────────────────────────────
         ss_hdr = _UI.h_stack(spacing=6.0)
         ss_hdr.addView_inGravity_(
             _UI.label("Screenshot", size=11.0, color=NSColor.secondaryLabelColor()),
@@ -1838,7 +1763,7 @@ class PokeMacroController(NSObject):
         ss_hdr.setTranslatesAutoresizingMaskIntoConstraints_(False)
 
         self._debug_iv = NSImageView.alloc().init()
-        self._debug_iv.setImageScaling_(3)  # NSImageScaleProportionallyUpOrDown
+        self._debug_iv.setImageScaling_(3)
         self._debug_iv.setTranslatesAutoresizingMaskIntoConstraints_(False)
         self._debug_iv.heightAnchor().constraintEqualToConstant_(220.0).setActive_(True)
 
@@ -1860,7 +1785,6 @@ class PokeMacroController(NSObject):
         self._debug_iv.trailingAnchor().constraintEqualToAnchor_constant_(ss_card.trailingAnchor(), -H).setActive_(True)
         self._debug_iv.bottomAnchor().constraintEqualToAnchor_constant_(ss_card.bottomAnchor(), -V).setActive_(True)
 
-        # ── OCR text card ─────────────────────────────────────────
         ocr_hdr = _UI.h_stack(spacing=6.0)
         ocr_hdr.addView_inGravity_(
             _UI.label("OCR Text", size=11.0, color=NSColor.secondaryLabelColor()),
@@ -1920,7 +1844,6 @@ class PokeMacroController(NSObject):
         ocr_sc.trailingAnchor().constraintEqualToAnchor_constant_(ocr_card.trailingAnchor(), -H).setActive_(True)
         ocr_sc.bottomAnchor().constraintEqualToAnchor_constant_(ocr_card.bottomAnchor(), -V).setActive_(True)
 
-        # ── Place both cards in wrapper ───────────────────────────
         w.addSubview_(ss_card)
         w.addSubview_(ocr_card)
 
@@ -1933,7 +1856,6 @@ class PokeMacroController(NSObject):
         ocr_card.trailingAnchor().constraintEqualToAnchor_constant_(w.trailingAnchor(), -pad).setActive_(True)
         ocr_card.bottomAnchor().constraintEqualToAnchor_constant_(w.bottomAnchor(), -pad).setActive_(True)
 
-        # ── Initial load + polling ────────────────────────────────
         self._refresh_debug()
         me = self
 
@@ -1997,7 +1919,6 @@ class PokeMacroController(NSObject):
 
         threading.Thread(target=_load, daemon=True).start()
 
-    # ── Selector actions ────────────────────────────────────────────
     def switchToTab_(self, index) -> None:
         self._tab.selectTabViewItemAtIndex_(int(index))
         win = self._window
@@ -2069,7 +1990,6 @@ class PokeMacroController(NSObject):
         if ts is not None and ts.length():
             ts.deleteCharactersInRange_((0, int(ts.length())))
 
-    # ── Run lifecycle ──────────────────────────────────────────────
     @objc.python_method
     def _start_run(self) -> None:
         self._config = self._gather()
@@ -2152,7 +2072,6 @@ class PokeMacroController(NSObject):
             else:
                 ctrl.setEnabled_(on)
 
-    # ── Status helper ──────────────────────────────────────────────
     @objc.python_method
     def _set_status(self, text: str, color: NSColor, dot: NSColor) -> None:
         if self._status_label is not None:
@@ -2161,7 +2080,6 @@ class PokeMacroController(NSObject):
         if self._status_iv is not None:
             self._status_iv.setContentTintColor_(dot)
 
-    # ── Config gather / load ───────────────────────────────────────
     @objc.python_method
     def _read_wish(self, tv: NSTextView) -> list[str]:
         ts = tv.textStorage()
@@ -2240,7 +2158,6 @@ class PokeMacroController(NSObject):
         self._server.setStringValue_(str(int(c.get("ServerID", 0) or 0)))
         self._log._apply()
 
-    # ── Log polling ────────────────────────────────────────────────
     @objc.python_method
     def _arm_log_polling(self) -> None:
         def tick(_t: NSTimer) -> None:
@@ -2298,7 +2215,6 @@ class PokeMacroController(NSObject):
         y = v.contentView().bounds().origin.y
         return y + vr.size.height >= h - 4.0
 
-    # ── Quit guard ─────────────────────────────────────────────────
     @objc.python_method
     def _should_stop(self) -> bool:
         a = NSAlert.alloc().init()
@@ -2327,7 +2243,6 @@ class PokeMacroController(NSObject):
     def windowWillClose_(self, notification) -> None:
         NSApplication.sharedApplication().terminate_(None)
 
-    # ── Menu bar ───────────────────────────────────────────────────
     @objc.python_method
     def _mi(self, title: str, action: bytes, key: str, mod: int = 0) -> NSMenuItem:
         m = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_(title, action, key)
@@ -2356,8 +2271,6 @@ class PokeMacroController(NSObject):
         app_item.setTitle_("PokeMacro")
         bar.addItem_(app_item)
 
-        # Standard Edit menu (Cut/Copy/Paste/Select All). Cmd+V routes through the Paste
-        # item — without these, Cocoa often does not deliver paste to embedded text fields.
         edit = NSMenu.alloc().initWithTitle_("Edit")
 
         def _resp_item(title: str, action: bytes, key: str, mod: int = NSCommandKeyMask) -> None:
@@ -2387,7 +2300,6 @@ class PokeMacroController(NSObject):
 
         app.setMainMenu_(bar)
 
-    # ── Entry point ────────────────────────────────────────────────
     @objc.python_method
     def run(self) -> None:
         start_background_update(
