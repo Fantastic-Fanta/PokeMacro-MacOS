@@ -18,7 +18,8 @@ def _http_connector():
 
         from .github_http import ssl_context
 
-        return aiohttp.TCPConnector(ssl=ssl_context(emit=None))
+        # limit=0 matches discord.py's default connector (unbounded per-host conns).
+        return aiohttp.TCPConnector(ssl=ssl_context(emit=None), limit=0)
     except Exception as e:
         print(
             f"[DiscordBot] Could not build aiohttp TLS connector ({e!r}); "

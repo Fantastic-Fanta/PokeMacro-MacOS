@@ -5,6 +5,7 @@ import os
 import queue
 import re
 import shutil
+from itertools import zip_longest
 import tempfile
 import threading
 import zipfile
@@ -18,6 +19,7 @@ from urllib.request import Request
 from .github_http import emit_tls_hint, urlopen_tls
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
+_DEV_SKIP_AUTO_UPDATE = PROJECT_ROOT / "dev"
 
 # Default for zip installs; overridden by update_repo.txt (first line: owner/repo)
 # or by remote origin in .git/config when present.
@@ -27,6 +29,9 @@ UPDATE_GITHUB_REPO: str | None = "Fantastic-Fanta/PokeMacro-MacOS"
 _IGNORE_FROM_RELEASE = frozenset({"configs.yaml"})
 _PRESERVE_IF_EXISTS = frozenset({".env"})
 _UPDATE_COMMIT_CACHE = PROJECT_ROOT / ".poke_update_commit"
+_INIT_VERSION_RE = re.compile(
+    r"""^__version__\s*=\s*['\"]([^'\"]+)['\"]""", re.MULTILINE
+)
 
 
 def _github_repo_from_url(url: str) -> str | None:
@@ -122,6 +127,47 @@ def _version_tuple(s: str) -> tuple[int, ...]:
     return tuple(parts)
 
 
+def _version_gt(a: tuple[int, ...], b: tuple[int, ...]) -> bool:
+    """True iff ``a`` is strictly greater than ``b`` (numeric segments, zero-padded)."""
+    for x, y in zip_longest(a, b, fillvalue=0):
+        if x != y:
+            return x > y
+    return False
+
+
+def _version_from_init_py(text: str) -> str | None:
+    m = _INIT_VERSION_RE.search(text)
+    return m.group(1).strip() if m else None
+
+
+def _remote_root_version(
+    repo: str, git_ref: str, emit: Callable[[str], None]
+) -> str | None:
+    owner, sep, name = repo.partition("/")
+    if not sep or "/" in name or not owner or not name:
+        return None
+    url = f"https://raw.githubusercontent.com/{owner}/{name}/{git_ref}/src/__init__.py"
+    req = Request(url, headers={"User-Agent": _user_agent()})
+    try:
+        with urlopen_tls(req, timeout=30, emit=emit) as resp:
+            body = resp.read().decode("utf-8", errors="replace")
+    except HTTPError as e:
+        if e.code != 404:
+            emit(f"[update] Could not read remote src/__init__.py: HTTP {e.code}")
+        return None
+    except URLError as e:
+        emit(f"[update] Could not read remote src/__init__.py: {e.reason}")
+        emit_tls_hint(emit, e)
+        return None
+    except OSError as e:
+        emit(f"[update] Could not read remote src/__init__.py: {e}")
+        return None
+    ver = _version_from_init_py(body)
+    if not ver:
+        emit("[update] Remote src/__init__.py has no __version__.")
+    return ver
+
+
 def _merge_release_tree(src_root: Path, emit: Callable[[str], None]) -> None:
     for path in src_root.rglob("*"):
         if path.is_dir():
@@ -196,8 +242,15 @@ def _http_branch_zipball_update(
     emit: Callable[[str], None],
     *,
     skip_cache: bool = False,
+    force: bool = False,
 ) -> tuple[bool, bool]:
-    """Returns (success, installed_new_merge). Second is False when already cached."""
+    """Returns (success, installed_new_merge). Second is False when already cached or skipped."""
+    try:
+        from . import __version__ as local_ver
+    except Exception:
+        local_ver = "0.0.0"
+    local_t = _version_tuple(str(local_ver))
+
     info = _http_json(f"https://api.github.com/repos/{repo}", emit)
     if not info or not isinstance(info, dict):
         return False, False
@@ -216,6 +269,17 @@ def _http_branch_zipball_update(
         cached = _UPDATE_COMMIT_CACHE.read_text(encoding="utf-8", errors="replace").strip()
         if cached == sha:
             emit(f"[update] Already up to date ({branch} @ {sha[:7]}).")
+            return True, False
+    if not force:
+        remote_ver = _remote_root_version(repo, sha, emit)
+        if remote_ver is None:
+            emit("[update] Skipping default-branch sync (could not compare versions).")
+            return True, False
+        if not _version_gt(_version_tuple(remote_ver), local_t):
+            emit(
+                f"[update] Default branch ({branch} @ {sha[:7]}, {remote_ver}) "
+                f"is not newer than local {local_ver}; skipping."
+            )
             return True, False
     zip_url = f"https://api.github.com/repos/{repo}/zipball/{branch}"
     emit(f"[update] Downloading {branch} @ {sha[:7]} …")
@@ -245,7 +309,9 @@ def _http_release_update(
     except HTTPError as e:
         if e.code == 404:
             emit("[update] No GitHub releases; syncing from default branch instead.")
-            return _http_branch_zipball_update(repo, emit, skip_cache=force)
+            return _http_branch_zipball_update(
+                repo, emit, skip_cache=force, force=force
+            )
         emit(f"[update] GitHub API HTTP {e.code}: {e.reason}")
         return False, False
     except URLError as e:
@@ -260,18 +326,22 @@ def _http_release_update(
         return False, False
 
     if not isinstance(release_data, dict):
-        return _http_branch_zipball_update(repo, emit, skip_cache=force)
+        return _http_branch_zipball_update(
+            repo, emit, skip_cache=force, force=force
+        )
 
     tag = str(release_data.get("tag_name") or "").strip()
     zip_url = release_data.get("zipball_url")
     if not tag or not zip_url or not isinstance(zip_url, str):
         emit("[update] Latest release incomplete; syncing from default branch instead.")
-        return _http_branch_zipball_update(repo, emit, skip_cache=force)
+        return _http_branch_zipball_update(
+            repo, emit, skip_cache=force, force=force
+        )
 
     remote_t = _version_tuple(tag)
     local_t = _version_tuple(str(local_ver))
-    if not force and remote_t <= local_t:
-        emit(f"[update] Already on latest release ({local_ver}).")
+    if not force and not _version_gt(remote_t, local_t):
+        emit(f"[update] Not updating: {tag} is not newer than installed {local_ver}.")
         return True, False
 
     emit(
@@ -296,6 +366,9 @@ def start_background_update(
             print(s, flush=True)
 
     def work() -> None:
+        if _DEV_SKIP_AUTO_UPDATE.exists():
+            emit("[update] Skipped: dev file in project root.")
+            return
         repo = _resolve_github_repo()
         if not repo:
             emit(
