@@ -2081,22 +2081,11 @@ class PokeMacroController(NSObject):
             self._run_item.setImage_(img)
             self._run_item.setLabel_("Stop")
             self._run_item.setEnabled_(False)
-        self._set_status("Checking for updates…", _Colors.MUTED, _Colors.IDLE)
         self._set_en(False)
-
-        def _launch():
-            if self._run_item is not None:
-                self._run_item.setEnabled_(True)
-            self._set_status("Running", _Colors.RUN, _Colors.RUN)
-            self._subprocess_mgr.start(self._log_queue, self._on_exit)
-
-        start_background_update(
-            log_queue=self._log_queue,
-            restart_callback=lambda: NSOperationQueue.mainQueue().addOperationWithBlock_(
-                self._restart_after_update,
-            ),
-            done_callback=lambda: NSOperationQueue.mainQueue().addOperationWithBlock_(_launch),
-        )
+        if self._run_item is not None:
+            self._run_item.setEnabled_(True)
+        self._set_status("Running", _Colors.RUN, _Colors.RUN)
+        self._subprocess_mgr.start(self._log_queue, self._on_exit)
 
     @objc.python_method
     def _on_exit(self, code: int) -> None:
