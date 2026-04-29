@@ -8,6 +8,8 @@ import threading
 from pathlib import Path
 from typing import Callable
 
+import mss
+import numpy as np
 import objc
 import pyautogui
 import yaml
@@ -1661,7 +1663,9 @@ class PokeMacroController(NSObject):
             try:
                 x = int(fields[0].stringValue() or "0")
                 y = int(fields[1].stringValue() or "0")
-                r, g, b = pyautogui.pixel(x, y)
+                with mss.mss() as sct:
+                    img = np.array(sct.grab({"top": y, "left": x, "width": 1, "height": 1}))
+                r, g, b = int(img[0, 0, 2]), int(img[0, 0, 1]), int(img[0, 0, 0])
                 fields[2].setStringValue_(str(r))
                 fields[3].setStringValue_(str(g))
                 fields[4].setStringValue_(str(b))
