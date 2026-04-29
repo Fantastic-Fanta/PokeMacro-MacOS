@@ -2272,9 +2272,12 @@ class PokeMacroController(NSObject):
         if "[update] Downloading" in s:
             self._show_update_overlay()
         elif self._update_overlay is not None:
-            sl = s.lower()
-            if "failed" in sl or "error" in sl or "could not" in sl or "skipping" in sl:
+            if "[update] Restarting" in s or "[update] Installed" in s:
                 self._hide_update_overlay()
+            else:
+                sl = s.lower()
+                if "failed" in sl or "error" in sl or "could not" in sl or "skipping" in sl:
+                    self._hide_update_overlay()
         ts = self._log.textStorage()
         if ts is None:
             return
