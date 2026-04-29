@@ -1,8 +1,15 @@
 # PokeMacro (MacOS only)
 
-Tesseract must run as `tesseract` on your `PATH` (`tesseract --version`). Examples: [Homebrew](https://brew.sh) → `brew install tesseract`, [MacPorts](https://www.macports.org) → `sudo port install tesseract`, or [build / install from upstream](https://tesseract-ocr.github.io/tessdoc/Installation.html). 
+Tesseract is required, install either from `Homebrew` for newer Macs, or `MacPorts` for older ones, and use the En language pack if needed
 
-```sh
-pip3 install -r requirements.txt
-python3 -m src.main
+Go to directory: ```sh
+cd your/downloaded/path/or/clone
+```
+
+Create virtual env and install libraries: ```sh
+python3 -m venv ENV && pip3 install -r requirements.txt
+```
+
+Run: ```sh
+python3 ui.py
 ```

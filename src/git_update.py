@@ -357,6 +357,7 @@ def start_background_update(
     log_fn: Callable[[str], None] | None = None,
     restart_callback: Callable[[], None] | None = None,
     done_callback: Callable[[], None] | None = None,
+    skip_cache: bool = False,
 ) -> None:
     def emit(s: str) -> None:
         if log_queue is not None:
@@ -382,7 +383,7 @@ def start_background_update(
             if done_callback:
                 done_callback()
             return
-        ok, installed = _http_branch_zipball_update(repo, emit)
+        ok, installed = _http_branch_zipball_update(repo, emit, skip_cache=skip_cache)
         if installed and restart_callback:
             emit("[update] Restarting to load the update …")
             restart_callback()

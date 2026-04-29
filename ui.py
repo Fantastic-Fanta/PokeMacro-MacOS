@@ -111,8 +111,9 @@ SIDEBAR_ITEMS = [
 _TB_STATUS  = "PM.status"
 _TB_FLEX    = "NSToolbarFlexibleSpaceItem"
 _TB_SAVE    = "PM.save"
+_TB_UPDATE  = "PM.update"
 _TB_RUN     = "PM.run"
-_TB_DEFAULT = [_TB_STATUS, _TB_FLEX, _TB_SAVE, _TB_RUN]
+_TB_DEFAULT = [_TB_STATUS, _TB_FLEX, _TB_SAVE, _TB_UPDATE, _TB_RUN]
 
 
 class _Colors:
@@ -814,6 +815,7 @@ class PokeMacroController(NSObject):
         self._sidebar_source   = None
         self._sidebar_tv       = None
         self._run_item         = None
+        self._update_item      = None
         self._status_iv        = None
         self._status_label     = None
         self._pick_map: dict   = {}
@@ -948,6 +950,16 @@ class PokeMacroController(NSObject):
             item.setBordered_(True)
             item.setTarget_(self)
             item.setAction_(b"saveConfig:")
+
+        elif identifier == _TB_UPDATE:
+            self._update_item = item
+            img = _UI.sf("arrow.triangle.2.circlepath", "Update", size=16.0)
+            item.setImage_(img)
+            item.setLabel_("Update")
+            item.setPaletteLabel_("Check for Update")
+            item.setBordered_(True)
+            item.setTarget_(self)
+            item.setAction_(b"checkUpdate:")
 
         elif identifier == _TB_RUN:
             self._run_item = item
@@ -1957,6 +1969,26 @@ class PokeMacroController(NSObject):
 
         self._status_reset_timer = NSTimer.scheduledTimerWithTimeInterval_repeats_block_(
             2.0, False, _reset
+        )
+
+    def checkUpdate_(self, sender) -> None:
+        if self._update_item is not None:
+            self._update_item.setEnabled_(False)
+        me = self
+
+        def _done() -> None:
+            def _re_enable() -> None:
+                if me._update_item is not None:
+                    me._update_item.setEnabled_(True)
+            NSOperationQueue.mainQueue().addOperationWithBlock_(_re_enable)
+
+        start_background_update(
+            log_queue=self._log_queue,
+            skip_cache=True,
+            restart_callback=lambda: NSOperationQueue.mainQueue().addOperationWithBlock_(
+                self._restart_after_update,
+            ),
+            done_callback=_done,
         )
 
     def toggleRun_(self, sender) -> None:
