@@ -104,6 +104,7 @@ SIDEBAR_ITEMS = [
     ("Wishlist",  "star.fill"),
     ("Positions", "mappin.and.ellipse"),
     ("Dex",       "list.number"),
+    ("Statics",   "dial.min.fill"),
     ("Logs",      "doc.text"),
     ("Debug",     "ladybug"),
 ]
@@ -521,6 +522,7 @@ class ConfigManager:
                 "SampleOffset": [10, 10],
                 "OutputFile": "missing-poopimons.txt",
             },
+            "Statics": [],
         }
 
 
@@ -832,6 +834,10 @@ class PokeMacroController(NSObject):
         self._dex_p2_field     = None
         self._dex_tv           = None
         self._update_overlay: _UpdateOverlayView | None = None
+        self._statics_data: list[dict]        = []
+        self._statics_field_views: list[dict] = []
+        self._statics_blocks_stack            = None
+        self._statics_pick_ids: set[int]      = set()
 
         self._build_content_panels()
         self._build_window()
@@ -848,6 +854,7 @@ class PokeMacroController(NSObject):
             ("Wishlist",  self._tab_wishlist),
             ("Positions", self._tab_positions),
             ("Dex",       self._tab_dex),
+            ("Statics",   self._tab_statics),
             ("Logs",      self._tab_logs),
             ("Debug",     self._tab_debug),
         ]:
@@ -1083,7 +1090,7 @@ class PokeMacroController(NSObject):
         self._all_config_controls.append(self._user)
         hunt.addView_inGravity_(self._form_row("Username", self._user), NSStackViewGravityTop)
 
-        self._hunt = _UI.popup(["Egg Resetter", "Roaming Hunter"])
+        self._hunt = _UI.popup(["Egg Resetter", "Roaming Hunter", "Static Macro"])
         self._all_config_controls.append(self._hunt)
         hunt.addView_inGravity_(self._form_row("Hunting mode", self._hunt), NSStackViewGravityTop)
 
@@ -1650,6 +1657,368 @@ class PokeMacroController(NSObject):
             self._pick_btn.setEnabled_(True)
             self._pick_btn = None
 
+    def staticsAddClick_(self, sender) -> None:
+        self._statics_flush_fields()
+        self._statics_data.append({
+            "type": "click", "position": [0, 0], "button": "left", "sleep": 0.0,
+        })
+        self._statics_rebuild_ui()
+
+    def staticsAddChat_(self, sender) -> None:
+        self._statics_flush_fields()
+        self._statics_data.append({"type": "chat_reader", "pokemon_name": ""})
+        self._statics_rebuild_ui()
+
+    def staticsBlockDelete_(self, sender) -> None:
+        idx = int(sender.tag())
+        if 0 <= idx < len(self._statics_data):
+            self._statics_flush_fields()
+            del self._statics_data[idx]
+            self._statics_rebuild_ui()
+
+    def staticsBlockUp_(self, sender) -> None:
+        idx = int(sender.tag())
+        if 0 < idx < len(self._statics_data):
+            self._statics_flush_fields()
+            self._statics_data[idx - 1], self._statics_data[idx] = (
+                self._statics_data[idx], self._statics_data[idx - 1]
+            )
+            self._statics_rebuild_ui()
+
+    def staticsBlockDown_(self, sender) -> None:
+        idx = int(sender.tag())
+        if idx < len(self._statics_data) - 1:
+            self._statics_flush_fields()
+            self._statics_data[idx], self._statics_data[idx + 1] = (
+                self._statics_data[idx + 1], self._statics_data[idx]
+            )
+            self._statics_rebuild_ui()
+
+    @objc.python_method
+    def _tab_statics(self) -> NSView:
+        outer = _UI.v_stack(spacing=14.0)
+        outer.setEdgeInsets_(NSEdgeInsets(UI_PAD, UI_PAD, UI_PAD, UI_PAD))
+
+        hdr = _UI.v_stack(spacing=8.0)
+        hdr.addView_inGravity_(
+            _UI.label("Statics", size=11.0, color=NSColor.secondaryLabelColor()),
+            NSStackViewGravityTop,
+        )
+        btn_row = _UI.h_stack(spacing=8.0)
+        btn_row.addView_inGravity_(
+            _UI.button("+ Click",       self, b"staticsAddClick:"), NSStackViewGravityTop
+        )
+        btn_row.addView_inGravity_(
+            _UI.button("+ Chat Reader", self, b"staticsAddChat:"),  NSStackViewGravityTop
+        )
+        btn_row.addView_inGravity_(_UI.spacer_h(), NSStackViewGravityTop)
+        hdr.addView_inGravity_(btn_row, NSStackViewGravityTop)
+        _UI.add_card(outer, hdr)
+
+        self._statics_blocks_stack = _UI.v_stack(spacing=10.0)
+        self._statics_blocks_stack.setTranslatesAutoresizingMaskIntoConstraints_(False)
+        outer.addView_inGravity_(self._statics_blocks_stack, NSStackViewGravityTop)
+        self._statics_blocks_stack.widthAnchor().constraintEqualToAnchor_constant_(
+            outer.widthAnchor(), -2 * UI_PAD
+        ).setActive_(True)
+
+        outer.addView_inGravity_(_UI.spacer_v(), NSStackViewGravityTop)
+        return _UI.tab_scroll(outer)
+
+    @objc.python_method
+    def _statics_rebuild_ui(self) -> None:
+        stack = self._statics_blocks_stack
+        if stack is None:
+            return
+        for k in self._statics_pick_ids:
+            self._pick_map.pop(k, None)
+        self._statics_pick_ids.clear()
+        for view in list(stack.views() or []):
+            stack.removeView_(view)
+        self._statics_field_views = []
+        for idx, block in enumerate(self._statics_data):
+            btype = block.get("type", "click")
+            if btype == "click":
+                content, fv = self._statics_make_click_card(idx, block)
+            else:
+                content, fv = self._statics_make_chat_card(idx, block)
+            self._statics_field_views.append(fv)
+            _UI.add_card(stack, content, pad=0.0)
+
+    @objc.python_method
+    def _statics_flush_fields(self) -> None:
+        for i, fv in enumerate(self._statics_field_views):
+            if i >= len(self._statics_data):
+                break
+            btype = fv.get("type")
+            if btype == "click":
+                try:
+                    px = int(fv["pos_x"].stringValue() or "0")
+                except (ValueError, TypeError):
+                    px = 0
+                try:
+                    py = int(fv["pos_y"].stringValue() or "0")
+                except (ValueError, TypeError):
+                    py = 0
+                self._statics_data[i]["position"] = [px, py]
+                wfp_on = fv["wfp_enabled"].state() == int(NSOnState)
+                if wfp_on:
+                    try:
+                        wx = int(fv["wfp_x"].stringValue() or "0")
+                    except (ValueError, TypeError):
+                        wx = 0
+                    try:
+                        wy = int(fv["wfp_y"].stringValue() or "0")
+                    except (ValueError, TypeError):
+                        wy = 0
+                    try:
+                        wr = int(fv["wfp_r"].stringValue() or "0")
+                    except (ValueError, TypeError):
+                        wr = 0
+                    try:
+                        wg = int(fv["wfp_g"].stringValue() or "0")
+                    except (ValueError, TypeError):
+                        wg = 0
+                    try:
+                        wb = int(fv["wfp_b"].stringValue() or "0")
+                    except (ValueError, TypeError):
+                        wb = 0
+                    self._statics_data[i]["wait_for_pixel"] = {
+                        "position": [wx, wy],
+                        "color":    [wr, wg, wb],
+                    }
+                else:
+                    self._statics_data[i].pop("wait_for_pixel", None)
+                btn_title = str(fv["button"].titleOfSelectedItem() or "Left")
+                self._statics_data[i]["button"] = btn_title.lower()
+                try:
+                    sleep_v = float(fv["sleep"].stringValue() or "0")
+                except (ValueError, TypeError):
+                    sleep_v = 0.0
+                self._statics_data[i]["sleep"] = sleep_v
+            elif btype == "chat_reader":
+                self._statics_data[i]["pokemon_name"] = str(
+                    fv["pokemon_name"].stringValue() or ""
+                )
+
+    @objc.python_method
+    def _statics_make_click_card(
+        self, index: int, block: dict
+    ) -> tuple:
+        fv: dict = {"type": "click"}
+        content = _UI.v_stack(spacing=8.0)
+
+        # Header row
+        hdr_row = _UI.h_stack(spacing=6.0)
+        lbl = _UI.label(f"Click  #{index + 1}", size=11.0, bold=True)
+        lbl.setTranslatesAutoresizingMaskIntoConstraints_(False)
+        hdr_row.addView_inGravity_(lbl, NSStackViewGravityTop)
+        hdr_row.addView_inGravity_(_UI.spacer_h(), NSStackViewGravityTop)
+        up_btn  = _UI.button("↑", self, b"staticsBlockUp:")
+        dn_btn  = _UI.button("↓", self, b"staticsBlockDown:")
+        del_btn = _UI.button("✕", self, b"staticsBlockDelete:")
+        for b in (up_btn, dn_btn, del_btn):
+            b.setTranslatesAutoresizingMaskIntoConstraints_(False)
+            b.widthAnchor().constraintEqualToConstant_(26.0).setActive_(True)
+            b.setTag_(index)
+        hdr_row.addView_inGravity_(up_btn,  NSStackViewGravityTop)
+        hdr_row.addView_inGravity_(dn_btn,  NSStackViewGravityTop)
+        hdr_row.addView_inGravity_(del_btn, NSStackViewGravityTop)
+        content.addView_inGravity_(hdr_row, NSStackViewGravityTop)
+
+        # Position row
+        pos = block.get("position", [0, 0])
+        pos_x = _UI.field(width=FIELD_W)
+        pos_x.setStringValue_(str(int(pos[0] if len(pos) > 0 else 0)))
+        pos_x.setAlignment_(NSRightTextAlignment)
+        pos_y = _UI.field(width=FIELD_W)
+        pos_y.setStringValue_(str(int(pos[1] if len(pos) > 1 else 0)))
+        pos_y.setAlignment_(NSRightTextAlignment)
+        pos_pb = _UI.button("", self, b"pickCoord:")
+        scope_img = _UI.sf("scope", "Pick coordinate", size=13.0)
+        if scope_img:
+            pos_pb.setImage_(scope_img)
+        pos_pb.setTranslatesAutoresizingMaskIntoConstraints_(False)
+        pos_pb.widthAnchor().constraintEqualToConstant_(PICK_BTN_W).setActive_(True)
+        self._pick_map[id(pos_pb)] = (pos_x, pos_y)
+        self._statics_pick_ids.add(id(pos_pb))
+
+        pos_lbl = _UI.label("Position")
+        pos_lbl.setTranslatesAutoresizingMaskIntoConstraints_(False)
+        pos_lbl.widthAnchor().constraintEqualToConstant_(LABEL_W).setActive_(True)
+        pos_row = _UI.h_stack(spacing=4.0)
+        pos_row.addView_inGravity_(pos_lbl, NSStackViewGravityTop)
+        pos_row.addView_inGravity_(_UI.label("X", size=11.0, color=NSColor.secondaryLabelColor()), NSStackViewGravityTop)
+        pos_row.addView_inGravity_(pos_x,   NSStackViewGravityTop)
+        pos_row.addView_inGravity_(_UI.label("Y", size=11.0, color=NSColor.secondaryLabelColor()), NSStackViewGravityTop)
+        pos_row.addView_inGravity_(pos_y,   NSStackViewGravityTop)
+        pos_row.addView_inGravity_(pos_pb,  NSStackViewGravityTop)
+        content.addView_inGravity_(pos_row, NSStackViewGravityTop)
+        fv["pos_x"] = pos_x
+        fv["pos_y"] = pos_y
+
+        # Button popup row
+        btn_popup = _UI.popup(["Left", "Right"])
+        saved_btn = str(block.get("button", "left")).strip().lower()
+        btn_popup.selectItemWithTitle_("Right" if saved_btn == "right" else "Left")
+        btn_lbl = _UI.label("Button")
+        btn_lbl.setTranslatesAutoresizingMaskIntoConstraints_(False)
+        btn_lbl.widthAnchor().constraintEqualToConstant_(LABEL_W).setActive_(True)
+        btn_row = _UI.h_stack(spacing=4.0)
+        btn_row.addView_inGravity_(btn_lbl,    NSStackViewGravityTop)
+        btn_row.addView_inGravity_(btn_popup,  NSStackViewGravityTop)
+        btn_row.addView_inGravity_(_UI.spacer_h(), NSStackViewGravityTop)
+        content.addView_inGravity_(btn_row, NSStackViewGravityTop)
+        fv["button"] = btn_popup
+
+        # Sleep row
+        sleep_f = _UI.field("0.0", width=FIELD_W)
+        sleep_f.setStringValue_(str(block.get("sleep", 0.0)))
+        sleep_lbl = _UI.label("Sleep (s)")
+        sleep_lbl.setTranslatesAutoresizingMaskIntoConstraints_(False)
+        sleep_lbl.widthAnchor().constraintEqualToConstant_(LABEL_W).setActive_(True)
+        sleep_row = _UI.h_stack(spacing=4.0)
+        sleep_row.addView_inGravity_(sleep_lbl, NSStackViewGravityTop)
+        sleep_row.addView_inGravity_(sleep_f,   NSStackViewGravityTop)
+        sleep_row.addView_inGravity_(_UI.spacer_h(), NSStackViewGravityTop)
+        content.addView_inGravity_(sleep_row, NSStackViewGravityTop)
+        fv["sleep"] = sleep_f
+
+        # Wait-for-pixel checkbox
+        wfp_data = block.get("wait_for_pixel")
+        wfp_cb = _UI.checkbox("Wait for pixel")
+        wfp_cb.setState_(int(NSOnState) if wfp_data else int(NSOffState))
+        wfp_cb.setTag_(index)
+        content.addView_inGravity_(wfp_cb, NSStackViewGravityTop)
+        fv["wfp_enabled"] = wfp_cb
+
+        # Wait-for-pixel position row
+        wfp_pos   = (wfp_data or {}).get("position", [0, 0])
+        wfp_color = (wfp_data or {}).get("color",    [0, 0, 0])
+        wfp_x = _UI.field(width=FIELD_W)
+        wfp_x.setStringValue_(str(int(wfp_pos[0] if len(wfp_pos) > 0 else 0)))
+        wfp_x.setAlignment_(NSRightTextAlignment)
+        wfp_y = _UI.field(width=FIELD_W)
+        wfp_y.setStringValue_(str(int(wfp_pos[1] if len(wfp_pos) > 1 else 0)))
+        wfp_y.setAlignment_(NSRightTextAlignment)
+        wfp_pb = _UI.button("", self, b"pickCoord:")
+        if scope_img:
+            wfp_pb.setImage_(scope_img)
+        wfp_pb.setTranslatesAutoresizingMaskIntoConstraints_(False)
+        wfp_pb.widthAnchor().constraintEqualToConstant_(PICK_BTN_W).setActive_(True)
+        self._pick_map[id(wfp_pb)] = (wfp_x, wfp_y)
+        self._statics_pick_ids.add(id(wfp_pb))
+
+        wfp_pos_lbl = _UI.label("  Pixel pos", size=11.0, color=NSColor.secondaryLabelColor())
+        wfp_pos_lbl.setTranslatesAutoresizingMaskIntoConstraints_(False)
+        wfp_pos_lbl.widthAnchor().constraintEqualToConstant_(LABEL_W).setActive_(True)
+        wfp_pos_row = _UI.h_stack(spacing=4.0)
+        wfp_pos_row.addView_inGravity_(wfp_pos_lbl, NSStackViewGravityTop)
+        wfp_pos_row.addView_inGravity_(_UI.label("X", size=11.0, color=NSColor.secondaryLabelColor()), NSStackViewGravityTop)
+        wfp_pos_row.addView_inGravity_(wfp_x, NSStackViewGravityTop)
+        wfp_pos_row.addView_inGravity_(_UI.label("Y", size=11.0, color=NSColor.secondaryLabelColor()), NSStackViewGravityTop)
+        wfp_pos_row.addView_inGravity_(wfp_y, NSStackViewGravityTop)
+        wfp_pos_row.addView_inGravity_(wfp_pb, NSStackViewGravityTop)
+        content.addView_inGravity_(wfp_pos_row, NSStackViewGravityTop)
+        fv["wfp_x"] = wfp_x
+        fv["wfp_y"] = wfp_y
+
+        # Wait-for-pixel color row
+        wfp_r = _UI.field(width=42.0)
+        wfp_r.setStringValue_(str(int(wfp_color[0] if len(wfp_color) > 0 else 0)))
+        wfp_r.setAlignment_(NSRightTextAlignment)
+        wfp_g = _UI.field(width=42.0)
+        wfp_g.setStringValue_(str(int(wfp_color[1] if len(wfp_color) > 1 else 0)))
+        wfp_g.setAlignment_(NSRightTextAlignment)
+        wfp_b_f = _UI.field(width=42.0)
+        wfp_b_f.setStringValue_(str(int(wfp_color[2] if len(wfp_color) > 2 else 0)))
+        wfp_b_f.setAlignment_(NSRightTextAlignment)
+        wfp_col_lbl = _UI.label("  Pixel color", size=11.0, color=NSColor.secondaryLabelColor())
+        wfp_col_lbl.setTranslatesAutoresizingMaskIntoConstraints_(False)
+        wfp_col_lbl.widthAnchor().constraintEqualToConstant_(LABEL_W).setActive_(True)
+        wfp_col_row = _UI.h_stack(spacing=4.0)
+        wfp_col_row.addView_inGravity_(wfp_col_lbl, NSStackViewGravityTop)
+        wfp_col_row.addView_inGravity_(_UI.label("R", size=11.0, color=NSColor.secondaryLabelColor()), NSStackViewGravityTop)
+        wfp_col_row.addView_inGravity_(wfp_r,   NSStackViewGravityTop)
+        wfp_col_row.addView_inGravity_(_UI.label("G", size=11.0, color=NSColor.secondaryLabelColor()), NSStackViewGravityTop)
+        wfp_col_row.addView_inGravity_(wfp_g,   NSStackViewGravityTop)
+        wfp_col_row.addView_inGravity_(_UI.label("B", size=11.0, color=NSColor.secondaryLabelColor()), NSStackViewGravityTop)
+        wfp_col_row.addView_inGravity_(wfp_b_f, NSStackViewGravityTop)
+        wfp_col_row.addView_inGravity_(_UI.spacer_h(), NSStackViewGravityTop)
+        content.addView_inGravity_(wfp_col_row, NSStackViewGravityTop)
+        fv["wfp_r"] = wfp_r
+        fv["wfp_g"] = wfp_g
+        fv["wfp_b"] = wfp_b_f
+
+        return content, fv
+
+    @objc.python_method
+    def _statics_make_chat_card(
+        self, index: int, block: dict
+    ) -> tuple:
+        fv: dict = {"type": "chat_reader"}
+        content = _UI.v_stack(spacing=8.0)
+
+        # Header row
+        hdr_row = _UI.h_stack(spacing=6.0)
+        lbl = _UI.label(f"Chat Reader  #{index + 1}", size=11.0, bold=True)
+        lbl.setTranslatesAutoresizingMaskIntoConstraints_(False)
+        hdr_row.addView_inGravity_(lbl, NSStackViewGravityTop)
+        hdr_row.addView_inGravity_(_UI.spacer_h(), NSStackViewGravityTop)
+        up_btn  = _UI.button("↑", self, b"staticsBlockUp:")
+        dn_btn  = _UI.button("↓", self, b"staticsBlockDown:")
+        del_btn = _UI.button("✕", self, b"staticsBlockDelete:")
+        for b in (up_btn, dn_btn, del_btn):
+            b.setTranslatesAutoresizingMaskIntoConstraints_(False)
+            b.widthAnchor().constraintEqualToConstant_(26.0).setActive_(True)
+            b.setTag_(index)
+        hdr_row.addView_inGravity_(up_btn,  NSStackViewGravityTop)
+        hdr_row.addView_inGravity_(dn_btn,  NSStackViewGravityTop)
+        hdr_row.addView_inGravity_(del_btn, NSStackViewGravityTop)
+        content.addView_inGravity_(hdr_row, NSStackViewGravityTop)
+
+        # Pokémon name row
+        name_f = _UI.field("e.g. Pikachu")
+        name_f.setStringValue_(str(block.get("pokemon_name", "")))
+        name_lbl = _UI.label("Pokémon name")
+        name_lbl.setTranslatesAutoresizingMaskIntoConstraints_(False)
+        name_lbl.widthAnchor().constraintEqualToConstant_(LABEL_W).setActive_(True)
+        name_row = _UI.h_stack(spacing=4.0)
+        name_row.addView_inGravity_(name_lbl,  NSStackViewGravityTop)
+        name_row.addView_inGravity_(name_f,    NSStackViewGravityTop)
+        name_row.addView_inGravity_(_UI.spacer_h(), NSStackViewGravityTop)
+        content.addView_inGravity_(name_row, NSStackViewGravityTop)
+        fv["pokemon_name"] = name_f
+
+        return content, fv
+
+    @objc.python_method
+    def _gather_statics(self) -> list:
+        self._statics_flush_fields()
+        result = []
+        for block in self._statics_data:
+            btype = block.get("type", "click")
+            if btype == "click":
+                entry: dict = {
+                    "type":     "click",
+                    "position": list(block.get("position", [0, 0])),
+                    "button":   block.get("button", "left"),
+                    "sleep":    float(block.get("sleep", 0.0)),
+                }
+                wfp = block.get("wait_for_pixel")
+                if wfp:
+                    entry["wait_for_pixel"] = {
+                        "position": list(wfp.get("position", [0, 0])),
+                        "color":    list(wfp.get("color", [0, 0, 0])),
+                    }
+                result.append(entry)
+            elif btype == "chat_reader":
+                result.append({
+                    "type":         "chat_reader",
+                    "pokemon_name": str(block.get("pokemon_name", "")),
+                })
+        return result
+
     @objc.python_method
     def _tab_logs(self) -> NSView:
         w   = NSView.alloc().init()
@@ -2103,6 +2472,14 @@ class PokeMacroController(NSObject):
                 ctrl.setEditable_(on)
             else:
                 ctrl.setEnabled_(on)
+        for fv in self._statics_field_views:
+            for key, v in fv.items():
+                if key == "type":
+                    continue
+                if isinstance(v, NSTextView):
+                    v.setEditable_(on)
+                elif hasattr(v, "setEnabled_"):
+                    v.setEnabled_(on)
 
     @objc.python_method
     def _set_status(self, text: str, color: NSColor, dot: NSColor) -> None:
@@ -2154,6 +2531,7 @@ class PokeMacroController(NSObject):
                 "SampleOffset": [10, 10],
                 "OutputFile": "missing-poopimons.txt",
             }),
+            "Statics": self._gather_statics(),
         }
 
     @objc.python_method
@@ -2189,6 +2567,32 @@ class PokeMacroController(NSObject):
         self._ptok.setStringValue_(tok)
         self._server.setStringValue_(str(int(c.get("ServerID", 0) or 0)))
         self._log._apply()
+        raw_statics = c.get("Statics", []) or []
+        self._statics_data = []
+        for entry in raw_statics:
+            if not isinstance(entry, dict):
+                continue
+            btype = str(entry.get("type", "click"))
+            if btype == "click":
+                block: dict = {
+                    "type":     "click",
+                    "position": list(entry.get("position", [0, 0])),
+                    "button":   str(entry.get("button", "left")),
+                    "sleep":    float(entry.get("sleep", 0.0)),
+                }
+                wfp = entry.get("wait_for_pixel")
+                if wfp and isinstance(wfp, dict):
+                    block["wait_for_pixel"] = {
+                        "position": list(wfp.get("position", [0, 0])),
+                        "color":    list(wfp.get("color", [0, 0, 0])),
+                    }
+                self._statics_data.append(block)
+            elif btype == "chat_reader":
+                self._statics_data.append({
+                    "type":         "chat_reader",
+                    "pokemon_name": str(entry.get("pokemon_name", "")),
+                })
+        self._statics_rebuild_ui()
 
     @objc.python_method
     def _arm_log_polling(self) -> None:

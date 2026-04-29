@@ -13,6 +13,7 @@ from src.hunter_config import DEFAULT_HUNTER_CONFIG
 from src.macro_config import DEFAULT_MACRO_CONFIG, HUNTING_MODE, MODE
 from src.macro_runner import MacroRunner
 from src.roam_runner import HunterRunner
+from src.static_runner import StaticRunner
 from src.url_opener import open_roblox_place as join_game
 
 
@@ -29,6 +30,9 @@ def main() -> None:
         if HUNTING_MODE == "roam":
             focus_roblox()
             HunterRunner(DEFAULT_HUNTER_CONFIG).run()
+        elif HUNTING_MODE == "static":
+            focus_roblox()
+            StaticRunner().run()
         else:
             runner = MacroRunner(DEFAULT_MACRO_CONFIG)
             runner.run()

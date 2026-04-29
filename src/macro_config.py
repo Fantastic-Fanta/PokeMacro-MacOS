@@ -95,7 +95,12 @@ MODE = str(_config.get("Mode", "URL Open")).strip().lower()
 
 
 _raw_mode = str(_config.get("HuntingMode", "Egg Resetter")).strip().lower()
-HUNTING_MODE = "roam" if _raw_mode in ("roam", "roaming", "roamhunter", "roaming hunter") else "egg"
+if _raw_mode in ("roam", "roaming", "roamhunter", "roaming hunter"):
+    HUNTING_MODE = "roam"
+elif _raw_mode in ("static macro", "staticmacro", "static"):
+    HUNTING_MODE = "static"
+else:
+    HUNTING_MODE = "egg"
 
 
 @dataclass
