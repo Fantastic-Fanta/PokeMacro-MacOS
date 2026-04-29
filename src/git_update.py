@@ -356,6 +356,7 @@ def start_background_update(
     log_queue: queue.Queue[str] | None = None,
     log_fn: Callable[[str], None] | None = None,
     restart_callback: Callable[[], None] | None = None,
+    done_callback: Callable[[], None] | None = None,
 ) -> None:
     def emit(s: str) -> None:
         if log_queue is not None:
@@ -368,6 +369,8 @@ def start_background_update(
     def work() -> None:
         if _DEV_SKIP_AUTO_UPDATE.exists():
             emit("[update] Skipped: dev file in project root.")
+            if done_callback:
+                done_callback()
             return
         repo = _resolve_github_repo()
         if not repo:
@@ -376,15 +379,17 @@ def start_background_update(
                 "or add owner/repo as the first line of update_repo.txt "
                 "(GitHub origin URL from .git/config is used when present)."
             )
+            if done_callback:
+                done_callback()
             return
         ok, installed = _http_branch_zipball_update(repo, emit)
-        if not ok:
-            return
+        if installed and restart_callback:
+            emit("[update] Restarting to load the update …")
+            restart_callback()
+            return  # app is restarting; don't call done_callback
         if installed:
-            if restart_callback:
-                emit("[update] Restarting to load the update …")
-                restart_callback()
-            else:
-                emit("[update] Restart the app to load new code.")
+            emit("[update] Restart the app to load new code.")
+        if done_callback:
+            done_callback()
 
     threading.Thread(target=work, daemon=True, name="auto-update").start()
