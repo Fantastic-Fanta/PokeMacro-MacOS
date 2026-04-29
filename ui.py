@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Callable
 
 import objc
+import pyautogui
 import yaml
 
 from AppKit import (
@@ -1643,6 +1644,7 @@ class PokeMacroController(NSObject):
 
     @objc.python_method
     def _applyPick(self) -> None:
+        fields = self._pick_fields
         self._pick_fields = None
         if self._pick_timer is not None:
             self._pick_timer.invalidate()
@@ -1655,6 +1657,16 @@ class PokeMacroController(NSObject):
             self._pick_btn.setTitle_("")
             self._pick_btn.setEnabled_(True)
             self._pick_btn = None
+        if fields is not None and len(fields) > 2:
+            try:
+                x = int(fields[0].stringValue() or "0")
+                y = int(fields[1].stringValue() or "0")
+                r, g, b = pyautogui.pixel(x, y)
+                fields[2].setStringValue_(str(r))
+                fields[3].setStringValue_(str(g))
+                fields[4].setStringValue_(str(b))
+            except Exception:
+                pass
 
     def staticsAddClick_(self, sender) -> None:
         self._statics_flush_fields()
@@ -1907,7 +1919,6 @@ class PokeMacroController(NSObject):
             wfp_pb.setImage_(scope_img)
         wfp_pb.setTranslatesAutoresizingMaskIntoConstraints_(False)
         wfp_pb.widthAnchor().constraintEqualToConstant_(PICK_BTN_W).setActive_(True)
-        self._pick_map[id(wfp_pb)] = (wfp_x, wfp_y)
         fv["wfp_pb"] = wfp_pb
 
         wfp_pos_lbl = _UI.label("  Pixel pos", size=11.0, color=NSColor.secondaryLabelColor())
@@ -1934,6 +1945,7 @@ class PokeMacroController(NSObject):
         wfp_b_f = _UI.field(width=42.0)
         wfp_b_f.setStringValue_(str(int(wfp_color[2] if len(wfp_color) > 2 else 0)))
         wfp_b_f.setAlignment_(NSRightTextAlignment)
+        self._pick_map[id(fv["wfp_pb"])] = (wfp_x, wfp_y, wfp_r, wfp_g, wfp_b_f)
         wfp_col_lbl = _UI.label("  Pixel color", size=11.0, color=NSColor.secondaryLabelColor())
         wfp_col_lbl.setTranslatesAutoresizingMaskIntoConstraints_(False)
         wfp_col_lbl.widthAnchor().constraintEqualToConstant_(LABEL_W).setActive_(True)
