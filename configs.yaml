@@ -1,0 +1,120 @@
+HuntingMode: Egg Resetter
+Username: Manta
+Mode: URL Open
+Wishlist:
+  Reskins:
+  - Phantom
+  - Glitch
+  - Shadow
+  Gradients:
+  - Nyx
+  - Nereus
+  - Helios
+  - Chronos
+  Roamings:
+  - Mew
+  - Raikou
+  - Entei
+  - Suicine
+  - Celebi
+  - Latios
+  - Latias
+  - Arceus
+  - Cobalion
+  - Terrakion
+  - Virizion
+  - Hoopa
+  - Regigigas
+  - Tornadus
+  - Thundurus
+  - Marshadow
+  Special:
+  - Shiny
+  - Amor
+  - Whiteout
+  - Phantom
+  - Glitch
+  - Shadow
+  - Lunar
+  - Nyx
+  - Nereus
+  - Gaia
+  - Helios
+  - Frostbite
+  - Chronos
+  - Valentine
+  - Coldheart
+  - Winter
+  - Effervescent
+  - Volumptous
+  - Liebe
+  - Aurora
+Positions:
+  EggManPosition:
+  - 969
+  - 559
+  EventButton:
+  - 1418
+  - 965
+  DialogueYES:
+  - 1170
+  - 405
+  QuickRejoinSprite:
+  - 1475
+  - 850
+  QuickRejoinButton:
+  - 1000
+  - 580
+  MenuButton:
+  - 43
+  - 451
+  SaveButton:
+  - 70
+  - 735
+  LoadingScreenYellow:
+  - 766
+  - 323
+  SaveFileCard:
+  - 753
+  - 503
+  RunButton:
+  - 974
+  - 910
+  Pokeball:
+  - 71
+  - 411
+ChatWindow:
+  LeftCorner:
+  - 13
+  - 136
+  RightCorner:
+  - 440
+  - 354
+EncounterNameRegion:
+  LeftCorner:
+  - 1079
+  - 212
+  RightCorner:
+  - 1222
+  - 245
+SpriteRegion:
+  LeftCorner:
+  - 810
+  - 400
+  RightCorner:
+  - 1240
+  - 700
+IsReskin: false
+IsShiny: false
+IsGradient: false
+IsAny: false
+IsGood: true
+DiscordBotToken: ''
+ServerID: 0
+DexScanner:
+  Rows: 23
+  Cols: 33
+  SampleOffset:
+  - 10
+  - 10
+  OutputFile: missing-poopimons.txt

@@ -1,6 +1,3 @@
-# Local machine config (Discord token, positions, etc.)
-configs.yaml
-
 # Presence disables background auto-update (local dev convenience)
 /dev
 
