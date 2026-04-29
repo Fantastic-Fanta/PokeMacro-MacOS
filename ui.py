@@ -837,7 +837,6 @@ class PokeMacroController(NSObject):
         self._statics_data: list[dict]        = []
         self._statics_field_views: list[dict] = []
         self._statics_blocks_stack            = None
-        self._statics_pick_ids: set[int]      = set()
 
         self._build_content_panels()
         self._build_window()
@@ -1730,9 +1729,11 @@ class PokeMacroController(NSObject):
         stack = self._statics_blocks_stack
         if stack is None:
             return
-        for k in self._statics_pick_ids:
-            self._pick_map.pop(k, None)
-        self._statics_pick_ids.clear()
+        for fv in self._statics_field_views:
+            for key in ("pos_pb", "wfp_pb"):
+                btn = fv.get(key)
+                if btn is not None:
+                    self._pick_map.pop(id(btn), None)
         for view in list(stack.views() or []):
             stack.removeView_(view)
         self._statics_field_views = []
@@ -1841,7 +1842,7 @@ class PokeMacroController(NSObject):
         pos_pb.setTranslatesAutoresizingMaskIntoConstraints_(False)
         pos_pb.widthAnchor().constraintEqualToConstant_(PICK_BTN_W).setActive_(True)
         self._pick_map[id(pos_pb)] = (pos_x, pos_y)
-        self._statics_pick_ids.add(id(pos_pb))
+        fv["pos_pb"] = pos_pb
 
         pos_lbl = _UI.label("Position")
         pos_lbl.setTranslatesAutoresizingMaskIntoConstraints_(False)
@@ -1907,7 +1908,7 @@ class PokeMacroController(NSObject):
         wfp_pb.setTranslatesAutoresizingMaskIntoConstraints_(False)
         wfp_pb.widthAnchor().constraintEqualToConstant_(PICK_BTN_W).setActive_(True)
         self._pick_map[id(wfp_pb)] = (wfp_x, wfp_y)
-        self._statics_pick_ids.add(id(wfp_pb))
+        fv["wfp_pb"] = wfp_pb
 
         wfp_pos_lbl = _UI.label("  Pixel pos", size=11.0, color=NSColor.secondaryLabelColor())
         wfp_pos_lbl.setTranslatesAutoresizingMaskIntoConstraints_(False)

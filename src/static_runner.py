@@ -9,10 +9,62 @@ import pyautogui
 from .click_executor import ClickExecutor
 from .discord_bot import DiscordBot
 from .hunter_config import CHAT_REGION, SPECIAL_VARIANTS
-from .macro_config import DISCORD_BOT_TOKEN, DISCORD_GUILD_ID, get_config_dict
+from .macro_config import (
+    DEFAULT_POSITIONS,
+    DISCORD_BOT_TOKEN,
+    DISCORD_GUILD_ID,
+    MODE,
+    SCREEN_CENTER,
+    get_config_dict,
+)
 from .ocr_screen import OcrService, ScreenRegion
 from .roam_text import is_special_roaming
 from .url_opener import open_roblox_place
+
+_sc = SCREEN_CENTER
+_pos = DEFAULT_POSITIONS
+
+_URL_OPEN_PREAMBLE_CLICKS = [
+    {
+        "position": _sc,
+        "sleep": 1.0,
+        "wait_for_pixel": {
+            "position": _pos.loadingscreen_yellow,
+            "color": (249, 239, 146),
+            "timeout": 20.0,
+        },
+    },
+    {
+        "position": (_sc[0], _sc[1] // 6),
+        "sleep": 0.02,
+    },
+    {
+        "position": (_sc[0], _sc[1] // 6 + 20),
+        "sleep": 0.1,
+    },
+    {
+        "position": _sc,
+        "sleep": 1.0,
+        "wait_for_pixel": {
+            "position": _pos.savefile_card,
+            "color": (146, 252, 207),
+            "timeout": 10.0,
+        },
+    },
+    {
+        "position": _sc,
+        "sleep": 0.1,
+    },
+]
+
+_URL_OPEN_PREAMBLE_WAIT = {
+    "sleep": 0.3,
+    "wait_for_pixel": {
+        "position": _pos.menu_button,
+        "color": (255, 255, 255),
+        "timeout": 10.0,
+    },
+}
 
 
 class StaticRunner:
@@ -22,6 +74,7 @@ class StaticRunner:
         c = get_config_dict()
         self._blocks: list[dict] = c.get("Statics") or []
         self._click_executor = ClickExecutor()
+        self._use_url_open_preamble = MODE == "url open"
         self._ocr = OcrService()
         cx, cy, cw, ch = CHAT_REGION
         self._chat_region = ScreenRegion(x=cx, y=cy, width=cw, height=ch)
@@ -53,6 +106,9 @@ class StaticRunner:
 
     def _loop(self) -> None:
         while self._running:
+            if self._use_url_open_preamble:
+                self._click_executor.execute_mouse_clicks(_URL_OPEN_PREAMBLE_CLICKS)
+                self._do_wait(_URL_OPEN_PREAMBLE_WAIT)
             for block in self._blocks:
                 if not self._running:
                     return
@@ -76,6 +132,18 @@ class StaticRunner:
                 "timeout":  float(wfp.get("timeout", 10.0)),
             }
         self._click_executor.execute_mouse_clicks([cfg])
+
+    def _do_wait(self, step: dict) -> None:
+        wfp = step.get("wait_for_pixel")
+        if wfp:
+            pos, color = wfp["position"], wfp["color"]
+            timeout = float(wfp.get("timeout", 10.0))
+            self._click_executor._pixel_service.wait_for_pixel_color(
+                pos[0], pos[1], color, timeout
+            )
+        sleep_time = float(step.get("sleep", 0.0))
+        if sleep_time > 0:
+            time.sleep(sleep_time)
 
     def _do_chat_reader(self, block: dict) -> None:
         name = str(block.get("pokemon_name", "")).strip()
