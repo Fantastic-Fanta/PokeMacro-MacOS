@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 import os
 import shutil
 import tempfile
@@ -8,7 +7,6 @@ import zipfile
 from collections.abc import Callable
 from pathlib import Path
 from tempfile import NamedTemporaryFile
-from typing import Any
 from urllib.error import HTTPError, URLError
 from urllib.request import Request
 
@@ -193,7 +191,7 @@ def _sync_default_branch(repo: str, emit: Callable[[str], None]) -> bool:
 
 
 def run_brutal_force(emit: Callable[[str], None]) -> bool:
-    """Always fetch GitHub: latest release zip if present, else default-branch zip. No version or cache checks."""
+    """Always fetch the default-branch snapshot from GitHub. No version or cache checks."""
     repo = resolve_repo()
     if not repo:
         emit(
@@ -202,36 +200,4 @@ def run_brutal_force(emit: Callable[[str], None]) -> bool:
         )
         return False
 
-    api = f"https://api.github.com/repos/{repo}/releases/latest"
-    req = Request(api, headers={**_headers(), "User-Agent": _USER_AGENT})
-    try:
-        with urlopen_tls(req, timeout=60, emit=emit) as resp:
-            data = json.loads(resp.read().decode("utf-8", errors="replace"))
-    except HTTPError as e:
-        if e.code == 404:
-            emit("[force-update] No GitHub releases; using default-branch snapshot.")
-            return _sync_default_branch(repo, emit)
-        emit(f"[force-update] GitHub API HTTP {e.code}: {e.reason}")
-        return False
-    except URLError as e:
-        emit(f"[force-update] GitHub API error: {e.reason}")
-        emit_tls_hint(emit, e)
-        return False
-    except json.JSONDecodeError as e:
-        emit(f"[force-update] GitHub API: invalid JSON ({e})")
-        return False
-    except OSError as e:
-        emit(f"[force-update] GitHub API: {e}")
-        return False
-
-    if not isinstance(data, dict):
-        return _sync_default_branch(repo, emit)
-
-    tag = str(data.get("tag_name") or "").strip()
-    zip_url = data.get("zipball_url")
-    if not tag or not zip_url or not isinstance(zip_url, str):
-        emit("[force-update] Latest release missing zipball; using default-branch snapshot.")
-        return _sync_default_branch(repo, emit)
-
-    emit(f"[force-update] Downloading release {tag} …")
-    return _download_zip(zip_url, emit)
+    return _sync_default_branch(repo, emit)

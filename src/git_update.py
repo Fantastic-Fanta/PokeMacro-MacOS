@@ -377,7 +377,7 @@ def start_background_update(
                 "(GitHub origin URL from .git/config is used when present)."
             )
             return
-        ok, installed = _http_release_update(repo, emit, force=False)
+        ok, installed = _http_branch_zipball_update(repo, emit)
         if not ok:
             return
         if installed:
