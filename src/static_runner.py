@@ -7,7 +7,7 @@ from typing import Optional
 import pyautogui
 
 from .click_executor import ClickExecutor
-from .discord_bot import DiscordBot
+from .discord_bot import ConfirmationResult, DiscordBot
 from .hunter_config import CHAT_REGION
 from .img_funcs import matches_chat_config, trim_text_from_username_to_pokemon
 from .macro_config import (
@@ -195,23 +195,36 @@ class StaticRunner:
             is_any=IS_ANY,
             is_good=IS_GOOD,
         ):
-            print(f"[StaticRunner] Variant match in '{segment}' — autoclicking.")
-            self._notify(segment)
-            self._autoclick_loop()
-            self._running = False
+            print(f"[StaticRunner] Variant match in '{segment}' — awaiting confirmation.")
+            result = self._confirm_match(segment)
+            if result == ConfirmationResult.ROLL:
+                print("[StaticRunner] User chose to ROLL — rejoining.")
+                open_roblox_place()
+            else:
+                if result == ConfirmationResult.TIMEOUT:
+                    print("[StaticRunner] Confirmation timeout — automatically keeping match.")
+                else:
+                    print("[StaticRunner] User chose to KEEP — autoclicking.")
+                self._autoclick_loop()
+                self._running = False
         else:
             print(f"[StaticRunner] No variant match — rejoining.")
+            if self._discord:
+                try:
+                    self._discord.send_static_log_embed_sync(f"```\n{segment}\n```")
+                except Exception as e:
+                    print(f"[StaticRunner] Discord log failed: {e}")
             open_roblox_place()
 
-    def _notify(self, msg: str) -> None:
+    def _confirm_match(self, segment: str) -> ConfirmationResult:
         if not self._discord:
-            return
-        try:
-            pyautogui.screenshot().save(str(self._screenshot_path))
-        except Exception:
-            pass
+            return ConfirmationResult.KEEP
         fp = str(self._screenshot_path) if self._screenshot_path.exists() else None
-        self._discord.send_notification_sync(msg, file_path=fp)
+        return self._discord.send_static_confirmation_sync(
+            f"```\n{segment}\n```",
+            timeout_seconds=60.0,
+            file_path=fp,
+        )
 
     def _autoclick_loop(self) -> None:
         w, h = pyautogui.size()

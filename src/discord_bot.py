@@ -48,6 +48,7 @@ class DiscordBot:
         self.confirmation_channel: Optional[discord.TextChannel] = None
         self.log_channel: Optional[discord.TextChannel] = None
         self.roam_channel: Optional[discord.TextChannel] = None
+        self.static_channel: Optional[discord.TextChannel] = None
         self._loop: Optional[asyncio.AbstractEventLoop] = None
         self._thread: Optional[threading.Thread] = None
         self._pending_confirmations: dict[str, asyncio.Future] = {}
@@ -96,12 +97,15 @@ class DiscordBot:
         self.confirmation_channel = await get_or_create_channel("egg-hunting")
         self.log_channel = await get_or_create_channel("reset-history")
         self.roam_channel = await get_or_create_channel("roam-hunting")
+        self.static_channel = await get_or_create_channel("static-hunting")
         if self.confirmation_channel:
             print(f"[Discord Bot] Confirmation channel: {self.confirmation_channel.name}")
         if self.log_channel:
             print(f"[Discord Bot] Log channel: {self.log_channel.name}")
         if self.roam_channel:
             print(f"[Discord Bot] Roam channel: {self.roam_channel.name}")
+        if self.static_channel:
+            print(f"[Discord Bot] Static channel: {self.static_channel.name}")
 
     async def on_interaction(self, interaction: discord.Interaction):
         if not interaction.data or "custom_id" not in interaction.data:
@@ -242,6 +246,139 @@ class DiscordBot:
         except Exception as e:
             print(f"[Discord Bot] Error in sync notification: {e}")
 
+    async def send_static_notification(self, message: str, file_path: Optional[str] = None) -> None:
+        if not self.static_channel:
+            print("[Discord Bot] Static channel not available, cannot send static notification")
+            return
+        file = None
+        if file_path:
+            path = Path(file_path)
+            if path.exists():
+                file = discord.File(str(path), filename=path.name)
+        if file is not None:
+            await self.static_channel.send(content=message, file=file)
+        else:
+            await self.static_channel.send(content=message)
+
+    def send_static_notification_sync(self, message: str, file_path: Optional[str] = None) -> None:
+        if not self._loop or not self._loop.is_running():
+            print("[Discord Bot] Bot not running, cannot send static notification")
+            return
+        future = asyncio.run_coroutine_threadsafe(
+            self.send_static_notification(message, file_path=file_path),
+            self._loop,
+        )
+        try:
+            future.result(timeout=15)
+        except Exception as e:
+            print(f"[Discord Bot] Error in sync static notification: {e}")
+
+    async def send_static_confirmation(
+        self,
+        message: str,
+        timeout_seconds: float = 600.0,
+        file_path: Optional[str] = None,
+    ) -> ConfirmationResult:
+        if not self.static_channel:
+            print("[Discord Bot] Static channel not available, defaulting to KEEP")
+            return ConfirmationResult.KEEP
+        confirmation_id = str(uuid.uuid4())
+        keep_button = discord.ui.Button(
+            label="Keep",
+            style=discord.ButtonStyle.grey,
+            custom_id=f"confirm_{confirmation_id}_keep",
+        )
+        roll_button = discord.ui.Button(
+            label="Roll",
+            style=discord.ButtonStyle.grey,
+            custom_id=f"confirm_{confirmation_id}_roll",
+        )
+        view = discord.ui.View()
+        view.add_item(keep_button)
+        view.add_item(roll_button)
+        future = asyncio.Future()
+        self._pending_confirmations[confirmation_id] = future
+        embed = discord.Embed(description=message, color=discord.Color.from_rgb(0, 170, 255))
+        file = None
+        if file_path:
+            path = Path(file_path)
+            if path.exists():
+                file = discord.File(str(path), filename=path.name)
+                embed.set_image(url=f"attachment://{path.name}")
+        mention = f"<@{self.user_id}>" if self.user_id else "@everyone"
+        content = f"{mention} Awaiting confirmation..."
+        if file is not None:
+            sent_message = await self.static_channel.send(content=content, embed=embed, view=view, file=file)
+        else:
+            sent_message = await self.static_channel.send(content=content, embed=embed, view=view)
+
+        async def timeout_handler():
+            await asyncio.sleep(timeout_seconds)
+            if confirmation_id in self._pending_confirmations:
+                future_inner = self._pending_confirmations[confirmation_id]
+                if not future_inner.done():
+                    try:
+                        await sent_message.edit(
+                            content=f"{mention} Static successfully saved.",
+                            view=None,
+                        )
+                    except Exception:
+                        pass
+                    future_inner.set_result(ConfirmationResult.TIMEOUT)
+                del self._pending_confirmations[confirmation_id]
+                if confirmation_id in self._timeout_tasks:
+                    del self._timeout_tasks[confirmation_id]
+
+        timeout_task = asyncio.create_task(timeout_handler())
+        self._timeout_tasks[confirmation_id] = timeout_task
+        try:
+            return await future
+        except Exception as e:
+            print(f"[Discord Bot] Error waiting for static confirmation: {e}")
+            return ConfirmationResult.TIMEOUT
+
+    def send_static_confirmation_sync(
+        self,
+        message: str,
+        timeout_seconds: float = 300.0,
+        file_path: Optional[str] = None,
+    ) -> ConfirmationResult:
+        if not self._loop or not self._loop.is_running():
+            print("[Discord Bot] Bot not running, defaulting to KEEP")
+            return ConfirmationResult.KEEP
+        future = asyncio.run_coroutine_threadsafe(
+            self.send_static_confirmation(message, timeout_seconds, file_path=file_path),
+            self._loop,
+        )
+        try:
+            return future.result(timeout=timeout_seconds + 5)
+        except Exception as e:
+            print(f"[Discord Bot] Error in sync static confirmation: {e}")
+            return ConfirmationResult.TIMEOUT
+
+    async def send_static_log_embed(self, description: str, color: Optional[discord.Color] = None) -> None:
+        if not self.static_channel:
+            print("[Discord Bot] Static channel not available, cannot send static log embed")
+            return
+        embed = discord.Embed(
+            description=description,
+            color=color or discord.Color.from_rgb(0, 170, 255),
+        )
+        await self.static_channel.send(embed=embed)
+
+    def send_static_log_embed_sync(self, description: str, color: Optional[discord.Color] = None) -> None:
+        if not self._loop or not self._loop.is_running():
+            print("[Discord Bot] Bot not running, cannot send static log embed")
+            return
+        future = asyncio.run_coroutine_threadsafe(
+            self.send_static_log_embed(description, color),
+            self._loop,
+        )
+        try:
+            future.result(timeout=5)
+        except Exception as e:
+            print(f"[Discord Bot] Error in sync static log embed: {e}")
+
     def start(self):
         def run_bot():
             try:
@@ -268,10 +405,10 @@ class DiscordBot:
         self._thread.start()
         max_wait = 30
         waited = 0
-        while (not self.confirmation_channel or not self.log_channel or not self.roam_channel) and waited < max_wait:
+        while (not self.confirmation_channel or not self.log_channel or not self.roam_channel or not self.static_channel) and waited < max_wait:
             time.sleep(0.5)
             waited += 0.5
-        if not self.confirmation_channel or not self.log_channel or not self.roam_channel:
+        if not self.confirmation_channel or not self.log_channel or not self.roam_channel or not self.static_channel:
             print("[Discord Bot] Warning: Bot did not fully initialize channels within timeout")
 
     def stop(self):
