@@ -1,12 +1,3 @@
-"""HTTPS for GitHub API/download with a reliable CA bundle and optional TLS overrides.
-
-- ``POKEMACRO_INSECURE_SSL=1`` disables verification (insecure; debugging only).
-- Prefers ``SSL_CERT_FILE`` or ``REQUESTS_CA_BUNDLE`` when set to a PEM file (corporate CA).
-- Otherwise uses `truststore` (OS certificate store; fixes many macOS / python.org setups).
-- Then ``certifi``'s CA bundle.
-- Then macOS system bundle at ``/etc/ssl/cert.pem`` (Ventura+).
-- Last: ``ssl.create_default_context()`` (system OpenSSL paths).
-"""
 from __future__ import annotations
 
 import os
