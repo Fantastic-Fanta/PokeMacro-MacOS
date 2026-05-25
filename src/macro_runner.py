@@ -123,9 +123,13 @@ class MacroRunner:
         return False
 
     def _handle_no_match(self) -> None:
+        positions = self._config.positions
         if self._config.mode in ("fast", "quick rejoin"):
-            pyautogui.write("//qre", interval=0.02)
-            pyautogui.press("enter")
+            # pyautogui.write("//qre", interval=0.02)
+            # pyautogui.press("enter")
+            pyautogui.click(*positions.quick_rejoin_sprite)
+            time.sleep(0.2)
+            pyautogui.click(*positions.quick_rejoin_button)
         else:
             rejoin()
 

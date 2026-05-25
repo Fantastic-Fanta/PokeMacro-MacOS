@@ -53,7 +53,6 @@ def matches_chat_config(
     if is_good and (
         (has_shiny and has_gradient)
         or (has_reskin and has_gradient)
-        or (has_shiny and has_reskin)
     ):
         return True
     if is_any and (has_reskin or has_gradient):
@@ -88,7 +87,8 @@ def matches_config(
         before_comma = text.split(",", 1)[0].strip()
         word_before_comma = before_comma.split()[-1].lower() if before_comma else ""
         if word_before_comma == "shiny":
-            return is_good
+            has_reskin = any(r.lower() in text_lower for r in reskins)
+            return False if has_reskin else is_good
         return is_any
     has_reskin = any(reskin.lower() in text_lower for reskin in reskins)
     has_gradient = any(gradient.lower() in text_lower for gradient in gradients)

@@ -2,7 +2,7 @@ import subprocess
 import sys
 
 
-def open_roblox_place(place_id: str = "133300157364376") -> bool:
+def open_roblox_place(place_id: str = "110569687091409") -> bool:
     try:
         subprocess.run(["open", f"roblox://placeid={place_id}"], check=True)
         return True
