@@ -1684,6 +1684,11 @@ class PokeMacroController(NSObject):
         self._statics_data.append({"type": "chat_reader", "pokemon_name": ""})
         self._statics_rebuild_ui()
 
+    def staticsAddKeypress_(self, sender) -> None:
+        self._statics_flush_fields()
+        self._statics_data.append({"type": "keypress", "keys": [], "sleep": 0.0})
+        self._statics_rebuild_ui()
+
     def staticsBlockDelete_(self, sender) -> None:
         idx = int(sender.tag())
         if 0 <= idx < len(self._statics_data):
@@ -1726,6 +1731,9 @@ class PokeMacroController(NSObject):
         btn_row.addView_inGravity_(
             _UI.button("+ Chat Reader", self, b"staticsAddChat:"),  NSStackViewGravityTop
         )
+        btn_row.addView_inGravity_(
+            _UI.button("+ Keypress", self, b"staticsAddKeypress:"), NSStackViewGravityTop
+        )
         btn_row.addView_inGravity_(_UI.spacer_h(), NSStackViewGravityTop)
         hdr.addView_inGravity_(btn_row, NSStackViewGravityTop)
         _UI.add_card(outer, hdr)
@@ -1757,6 +1765,8 @@ class PokeMacroController(NSObject):
             btype = block.get("type", "click")
             if btype == "click":
                 content, fv = self._statics_make_click_card(idx, block)
+            elif btype == "keypress":
+                content, fv = self._statics_make_keypress_card(idx, block)
             else:
                 content, fv = self._statics_make_chat_card(idx, block)
             self._statics_field_views.append(fv)
@@ -1808,6 +1818,16 @@ class PokeMacroController(NSObject):
                     self._statics_data[i].pop("wait_for_pixel", None)
                 btn_title = str(fv["button"].titleOfSelectedItem() or "Left")
                 self._statics_data[i]["button"] = btn_title.lower()
+                try:
+                    sleep_v = float(fv["sleep"].stringValue() or "0")
+                except (ValueError, TypeError):
+                    sleep_v = 0.0
+                self._statics_data[i]["sleep"] = sleep_v
+            elif btype == "keypress":
+                raw = str(fv["keys"].stringValue() or "")
+                self._statics_data[i]["keys"] = [
+                    k.strip() for k in raw.split(",") if k.strip()
+                ]
                 try:
                     sleep_v = float(fv["sleep"].stringValue() or "0")
                 except (ValueError, TypeError):
@@ -1966,6 +1986,60 @@ class PokeMacroController(NSObject):
         fv["wfp_r"] = wfp_r
         fv["wfp_g"] = wfp_g
         fv["wfp_b"] = wfp_b_f
+
+        return content, fv
+
+    @objc.python_method
+    def _statics_make_keypress_card(
+        self, index: int, block: dict
+    ) -> tuple:
+        fv: dict = {"type": "keypress"}
+        content = _UI.v_stack(spacing=8.0)
+
+        # Header row
+        hdr_row = _UI.h_stack(spacing=6.0)
+        lbl = _UI.label(f"Keypress  #{index + 1}", size=11.0, bold=True)
+        lbl.setTranslatesAutoresizingMaskIntoConstraints_(False)
+        hdr_row.addView_inGravity_(lbl, NSStackViewGravityTop)
+        hdr_row.addView_inGravity_(_UI.spacer_h(), NSStackViewGravityTop)
+        up_btn  = _UI.button("↑", self, b"staticsBlockUp:")
+        dn_btn  = _UI.button("↓", self, b"staticsBlockDown:")
+        del_btn = _UI.button("✕", self, b"staticsBlockDelete:")
+        for b in (up_btn, dn_btn, del_btn):
+            b.setTranslatesAutoresizingMaskIntoConstraints_(False)
+            b.widthAnchor().constraintEqualToConstant_(26.0).setActive_(True)
+            b.setTag_(index)
+        hdr_row.addView_inGravity_(up_btn,  NSStackViewGravityTop)
+        hdr_row.addView_inGravity_(dn_btn,  NSStackViewGravityTop)
+        hdr_row.addView_inGravity_(del_btn, NSStackViewGravityTop)
+        content.addView_inGravity_(hdr_row, NSStackViewGravityTop)
+
+        # Keys row (comma-separated)
+        keys_val = ", ".join(block.get("keys", []))
+        keys_f = _UI.field("e.g. enter, space, e")
+        keys_f.setStringValue_(keys_val)
+        keys_lbl = _UI.label("Keys")
+        keys_lbl.setTranslatesAutoresizingMaskIntoConstraints_(False)
+        keys_lbl.widthAnchor().constraintEqualToConstant_(LABEL_W).setActive_(True)
+        keys_row = _UI.h_stack(spacing=4.0)
+        keys_row.addView_inGravity_(keys_lbl, NSStackViewGravityTop)
+        keys_row.addView_inGravity_(keys_f,   NSStackViewGravityTop)
+        keys_row.addView_inGravity_(_UI.spacer_h(), NSStackViewGravityTop)
+        content.addView_inGravity_(keys_row, NSStackViewGravityTop)
+        fv["keys"] = keys_f
+
+        # Sleep row
+        sleep_f = _UI.field("0.0", width=FIELD_W)
+        sleep_f.setStringValue_(str(block.get("sleep", 0.0)))
+        sleep_lbl = _UI.label("Sleep (s)")
+        sleep_lbl.setTranslatesAutoresizingMaskIntoConstraints_(False)
+        sleep_lbl.widthAnchor().constraintEqualToConstant_(LABEL_W).setActive_(True)
+        sleep_row = _UI.h_stack(spacing=4.0)
+        sleep_row.addView_inGravity_(sleep_lbl, NSStackViewGravityTop)
+        sleep_row.addView_inGravity_(sleep_f,   NSStackViewGravityTop)
+        sleep_row.addView_inGravity_(_UI.spacer_h(), NSStackViewGravityTop)
+        content.addView_inGravity_(sleep_row, NSStackViewGravityTop)
+        fv["sleep"] = sleep_f
 
         return content, fv
 

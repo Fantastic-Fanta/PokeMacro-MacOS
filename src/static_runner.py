@@ -124,6 +124,8 @@ class StaticRunner:
                 btype = block.get("type", "click")
                 if btype == "click":
                     self._do_click(block)
+                elif btype == "keypress":
+                    self._do_keypress(block)
                 elif btype == "chat_reader":
                     self._do_chat_reader(block)
 
@@ -141,6 +143,16 @@ class StaticRunner:
                 "timeout":  float(wfp.get("timeout", 10.0)),
             }
         self._click_executor.execute_mouse_clicks([cfg])
+
+    def _do_keypress(self, block: dict) -> None:
+        keys = block.get("keys", [])
+        for key in keys:
+            key = str(key).strip()
+            if key:
+                pyautogui.press(key)
+        sleep_time = float(block.get("sleep", 0.0))
+        if sleep_time > 0:
+            time.sleep(sleep_time)
 
     def _do_wait(self, step: dict) -> None:
         wfp = step.get("wait_for_pixel")
